@@ -6,6 +6,9 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
+import { MongooseModule } from '@nestjs/mongoose';
+import { CvModule } from './cv/cv.module';
+import { LettersModule } from './letters/letters.module';
 
 @Module({
   imports: [
@@ -23,11 +26,20 @@ import { AuthModule } from './auth/auth.module';
         password: configService.get<string>('DB_PASSWORD'),
         database: configService.get<string>('DB_DATABASE'),
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: true, // dev only — never use in production
+        synchronize: true,
+      }),
+    }),
+    MongooseModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        uri: configService.getOrThrow<string>('MONGODB_URI'),
       }),
     }),
     UsersModule,
     AuthModule,
+    CvModule,
+    LettersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
