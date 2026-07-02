@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Schema as MongooseSchema } from 'mongoose';
+import { StorageBackend } from '../../storage/interfaces/storage-backend.enum';
 
 export enum SectionType {
   PERSONAL_INFO = 'personalInfo',
@@ -46,6 +47,12 @@ export class Cv extends Document {
 
   @Prop({ type: [SectionSchema], default: [] })
   sections!: Section[];
+
+  @Prop()
+  pdfKey?: string; // e.g. "cv-pdfs/<cvId>.pdf"
+
+  @Prop({ type: String, enum: StorageBackend })
+  pdfBackend?: StorageBackend;
 }
 
 export const CvSchema = SchemaFactory.createForClass(Cv);

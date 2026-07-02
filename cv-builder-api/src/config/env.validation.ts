@@ -28,6 +28,24 @@ class EnvironmentVariables {
 
   @IsString()
   MONGODB_URI!: string;
+
+  @IsString()
+  MINIO_ENDPOINT!: string;
+
+  @IsNumber()
+  MINIO_API_PORT!: number;
+
+  @IsString()
+  MINIO_ROOT_USER!: string;
+
+  @IsString()
+  MINIO_ROOT_PASSWORD!: string;
+
+  @IsString()
+  MINIO_BUCKET!: string;
+
+  @IsString()
+  LOCAL_STORAGE_PATH!: string;
 }
 
 export function validate(config: Record<string, unknown>) {
