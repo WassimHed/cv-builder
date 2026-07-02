@@ -1,0 +1,24 @@
+import { Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
+import {
+  MotivationLetter,
+  MotivationLetterSchema,
+} from './schemas/motivation-letter.schema';
+import { LettersService } from './letters.service';
+import { LettersController } from './letters.controller';
+import { UsersModule } from '../users/users.module';
+import { CvModule } from '../cv/cv.module';
+
+@Module({
+  imports: [
+    MongooseModule.forFeature([
+      { name: MotivationLetter.name, schema: MotivationLetterSchema },
+    ]),
+    UsersModule,
+    CvModule,
+  ],
+  controllers: [LettersController],
+  providers: [LettersService],
+  exports: [LettersService],
+})
+export class LettersModule {}
