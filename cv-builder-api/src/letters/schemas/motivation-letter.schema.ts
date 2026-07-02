@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
+import { StorageBackend } from '../../storage/interfaces/storage-backend.enum';
 
 @Schema({
   timestamps: true,
@@ -27,6 +28,12 @@ export class MotivationLetter extends Document {
 
   @Prop({ required: true })
   content!: string;
+
+  @Prop({ type: String })
+  pdfKey?: string;
+
+  @Prop({ type: String, enum: StorageBackend })
+  pdfBackend?: StorageBackend;
 }
 
 export const MotivationLetterSchema =

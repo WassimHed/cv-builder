@@ -8,6 +8,7 @@ import { LettersService } from './letters.service';
 import { LettersController } from './letters.controller';
 import { UsersModule } from '../users/users.module';
 import { CvModule } from '../cv/cv.module';
+import { StorageModule } from '../storage/storage.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { CvModule } from '../cv/cv.module';
     ]),
     UsersModule,
     CvModule,
+    StorageModule,
   ],
   controllers: [LettersController],
   providers: [LettersService],
