@@ -3,22 +3,28 @@ import { IsNumber, IsString, validateSync } from 'class-validator';
 
 class EnvironmentVariables {
   @IsNumber()
-  PORT: number;
+  PORT!: number;
 
   @IsString()
-  DB_HOST: string;
+  DB_HOST!: string;
 
   @IsNumber()
-  DB_PORT: number;
+  DB_PORT!: number;
 
   @IsString()
-  DB_USERNAME: string;
+  DB_USERNAME!: string;
 
   @IsString()
-  DB_PASSWORD: string;
+  DB_PASSWORD!: string;
 
   @IsString()
-  DB_DATABASE: string;
+  DB_DATABASE!: string;
+
+  @IsString()
+  JWT_SECRET!: string;
+
+  @IsString()
+  JWT_EXPIRATION_TIME!: string;
 }
 
 export function validate(config: Record<string, unknown>) {
