@@ -20,11 +20,30 @@ describe('LettersService', () => {
     findOne: jest.Mock;
   };
 
+  const makeLetterDocument = (plain: Record<string, unknown>) => {
+    const doc: Record<string, unknown> = {
+      ...plain,
+      $__: { tracked: true },
+      _doc: { ...plain },
+      $isNew: false,
+    };
+
+    doc.toJSON = jest.fn(() => {
+      const { $__: _, _doc: __, $isNew: ___, save: ____, toJSON: _____, ...rest } =
+        doc;
+      return {
+        ...rest,
+        _id: String(rest._id ?? 'letter-1'),
+      };
+    });
+
+    doc.save = jest.fn(async () => doc);
+    return doc;
+  };
+
   beforeEach(async () => {
-    const save = jest.fn().mockResolvedValue({ id: 'letter-1' });
     letterModel = jest.fn().mockImplementation((doc) => ({
-      ...doc,
-      save,
+      ...makeLetterDocument({ _id: 'letter-1', ...doc }),
     })) as jest.Mock & {
       find: jest.Mock;
       findOne: jest.Mock;
@@ -83,7 +102,11 @@ describe('LettersService', () => {
       content: 'Cover letter content',
       userId: 'user-1',
     });
-    expect(result).toEqual({ id: 'letter-1' });
+    expect(result).toEqual({
+      _id: 'letter-1',
+      content: 'Cover letter content',
+      userId: 'user-1',
+    });
   });
 
   it('creates a letter linked to an owned cv', async () => {
@@ -101,7 +124,12 @@ describe('LettersService', () => {
       content: 'Cover letter content',
       userId: 'user-1',
     });
-    expect(result).toEqual({ id: 'letter-1' });
+    expect(result).toEqual({
+      _id: 'letter-1',
+      cvId: 'cv-1',
+      content: 'Cover letter content',
+      userId: 'user-1',
+    });
   });
 
   it('rejects when the cv reference is not owned', async () => {

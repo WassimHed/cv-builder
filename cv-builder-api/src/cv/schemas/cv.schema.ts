@@ -31,7 +31,17 @@ export class Section {
 
 const SectionSchema = SchemaFactory.createForClass(Section);
 
-@Schema({ timestamps: true, collection: 'cvs' })
+@Schema({
+  timestamps: true,
+  collection: 'cvs',
+  toJSON: {
+    versionKey: false,
+    transform: (_doc, ret) => {
+      (ret as unknown as { _id: string })._id = ret._id.toString();
+      return ret;
+    },
+  },
+})
 export class Cv extends Document {
   @Prop({ required: true })
   userId!: string;

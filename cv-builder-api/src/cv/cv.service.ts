@@ -15,6 +15,7 @@ import { SkillsContentDto } from './dto/section-content/skills-content.dto';
 import { ProjectsContentDto } from './dto/section-content/projects-content.dto';
 import { CertificationsContentDto } from './dto/section-content/certifications-content.dto';
 import { LanguagesContentDto } from './dto/section-content/languages-content.dto';
+import { StorageService } from '../storage/storage.service';
 
 const CONTENT_DTO_MAP: Record<SectionType, new () => object> = {
   [SectionType.PERSONAL_INFO]: PersonalInfoContentDto,
@@ -31,6 +32,7 @@ export class CvService {
   constructor(
     @InjectModel(Cv.name) private readonly cvModel: Model<Cv>,
     private readonly usersService: UsersService,
+    private readonly storageService: StorageService,
   ) {}
 
   private async validateSectionContent(
@@ -39,6 +41,16 @@ export class CvService {
     const DtoClass = CONTENT_DTO_MAP[section.type];
     const instance = plainToInstance(DtoClass, section.content);
     await validateOrReject(instance);
+  }
+
+  private toPlain(cv: Cv): Cv {
+    return cv.toJSON() as Cv;
+  }
+
+  private async findOneDocument(id: string, userId: string): Promise<Cv> {
+    const cv = await this.cvModel.findOne({ _id: id, userId }).exec();
+    if (!cv) throw new NotFoundException('CV not found');
+    return cv;
   }
 
   async create(userId: string, dto: CreateCvDto): Promise<Cv> {
@@ -51,17 +63,18 @@ export class CvService {
     }
 
     const created = new this.cvModel({ ...dto, userId });
-    return created.save();
+    const saved = await created.save();
+    return this.toPlain(saved);
   }
 
   async findAllByUser(userId: string): Promise<Cv[]> {
-    return this.cvModel.find({ userId }).exec();
+    const cvs = await this.cvModel.find({ userId }).exec();
+    return cvs.map((cv) => this.toPlain(cv));
   }
 
   async findOne(id: string, userId: string): Promise<Cv> {
-    const cv = await this.cvModel.findOne({ _id: id, userId }).exec();
-    if (!cv) throw new NotFoundException('CV not found');
-    return cv;
+    const cv = await this.findOneDocument(id, userId);
+    return this.toPlain(cv);
   }
 
   async update(id: string, userId: string, dto: UpdateCvDto): Promise<Cv> {
@@ -69,7 +82,7 @@ export class CvService {
       .findOneAndUpdate({ _id: id, userId }, dto, { new: true })
       .exec();
     if (!cv) throw new NotFoundException('CV not found');
-    return cv;
+    return this.toPlain(cv);
   }
 
   async remove(id: string, userId: string): Promise<void> {
@@ -88,8 +101,38 @@ export class CvService {
     dto: CreateSectionDto,
   ): Promise<Cv> {
     await this.validateSectionContent(dto);
-    const cv = await this.findOne(cvId, userId);
+    const cv = await this.findOneDocument(cvId, userId);
     cv.sections.push({ ...dto });
-    return cv.save();
+    const saved = await cv.save();
+    return this.toPlain(saved);
+  }
+  async uploadPdf(cvId: string, userId: string, buffer: Buffer): Promise<Cv> {
+    const cv = await this.findOneDocument(cvId, userId); // throws NotFoundException if not owned
+
+    const key = `cv-pdfs/${cvId}.pdf`;
+    const { backend } = await this.storageService.upload(
+      key,
+      buffer,
+      'application/pdf',
+    );
+
+    cv.pdfKey = key;
+    cv.pdfBackend = backend;
+    const saved = await cv.save();
+    return this.toPlain(saved);
+  }
+
+  async downloadPdf(
+    cvId: string,
+    userId: string,
+  ): Promise<{ buffer: Buffer; filename: string }> {
+    const cv = await this.findOne(cvId, userId);
+
+    if (!cv.pdfKey || !cv.pdfBackend) {
+      throw new NotFoundException('This CV has no generated PDF yet');
+    }
+
+    const buffer = await this.storageService.download(cv.pdfKey, cv.pdfBackend);
+    return { buffer, filename: `${cv.title}.pdf` };
   }
 }

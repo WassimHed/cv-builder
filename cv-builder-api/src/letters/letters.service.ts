@@ -16,6 +16,19 @@ export class LettersService {
     private readonly cvService: CvService,
   ) {}
 
+  private toPlain(letter: MotivationLetter): MotivationLetter {
+    return letter.toJSON() as MotivationLetter;
+  }
+
+  private async findOneDocument(
+    id: string,
+    userId: string,
+  ): Promise<MotivationLetter> {
+    const letter = await this.letterModel.findOne({ _id: id, userId }).exec();
+    if (!letter) throw new NotFoundException('Motivation letter not found');
+    return letter;
+  }
+
   async create(
     userId: string,
     dto: CreateMotivationLetterDto,
@@ -27,17 +40,18 @@ export class LettersService {
     }
 
     const created = new this.letterModel({ ...dto, userId });
-    return created.save();
+    const saved = await created.save();
+    return this.toPlain(saved);
   }
 
   async findAllByUser(userId: string): Promise<MotivationLetter[]> {
-    return this.letterModel.find({ userId }).exec();
+    const letters = await this.letterModel.find({ userId }).exec();
+    return letters.map((letter) => this.toPlain(letter));
   }
 
   async findOne(id: string, userId: string): Promise<MotivationLetter> {
-    const letter = await this.letterModel.findOne({ _id: id, userId }).exec();
-    if (!letter) throw new NotFoundException('Motivation letter not found');
-    return letter;
+    const letter = await this.findOneDocument(id, userId);
+    return this.toPlain(letter);
   }
 
   async update(
@@ -53,7 +67,7 @@ export class LettersService {
       .findOneAndUpdate({ _id: id, userId }, dto, { new: true })
       .exec();
     if (!letter) throw new NotFoundException('Motivation letter not found');
-    return letter;
+    return this.toPlain(letter);
   }
 
   async remove(id: string, userId: string): Promise<void> {
