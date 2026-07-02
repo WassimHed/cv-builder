@@ -25,6 +25,9 @@ class EnvironmentVariables {
 
   @IsString()
   JWT_EXPIRATION_TIME!: string;
+
+  @IsString()
+  MONGODB_URI!: string;
 }
 
 export function validate(config: Record<string, unknown>) {
