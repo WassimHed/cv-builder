@@ -1,5 +1,5 @@
-import { plainToInstance } from 'class-transformer';
-import { IsNumber, IsString, validateSync } from 'class-validator';
+import { plainToInstance, Type } from 'class-transformer';
+import { IsInt, IsNumber, IsString, validateSync } from 'class-validator';
 
 class EnvironmentVariables {
   @IsNumber()
@@ -46,6 +46,12 @@ class EnvironmentVariables {
 
   @IsString()
   LOCAL_STORAGE_PATH!: string;
+  @IsString()
+  BULL_REDIS_HOST!: string;
+
+  @IsInt()
+  @Type(() => Number)
+  BULL_REDIS_PORT!: number;
 }
 
 export function validate(config: Record<string, unknown>) {

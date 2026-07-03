@@ -20,13 +20,19 @@ import { CreateMotivationLetterDto } from './dto/create-motivation-letter.dto';
 import { UpdateMotivationLetterDto } from './dto/update-motivation-letter.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
+import { PdfService } from '../pdf/pdf.service';
+
+import type { AuthenticatedUser } from '../auth/decorators/current-user.decorator';
 
 @ApiTags('letters')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('letters')
 export class LettersController {
-  constructor(private readonly lettersService: LettersService) {}
+  constructor(
+    private readonly lettersService: LettersService,
+    private readonly pdfService: PdfService,
+  ) {}
 
   @Post()
   create(
@@ -101,5 +107,24 @@ export class LettersController {
       'Content-Disposition': `attachment; filename="${filename}"`,
     });
     res.send(buffer);
+  }
+
+  @Post(':id/pdf/generate')
+  @UseGuards(JwtAuthGuard)
+  async generatePdf(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    await this.pdfService.enqueueLetterGeneration(id, user.userId);
+    return { status: 'queued' };
+  }
+
+  @Get(':id/pdf/status')
+  @UseGuards(JwtAuthGuard)
+  async getPdfStatus(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return { status: await this.pdfService.getLetterStatus(id, user.userId) };
   }
 }

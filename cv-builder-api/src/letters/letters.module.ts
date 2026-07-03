@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import {
   MotivationLetter,
@@ -9,6 +9,7 @@ import { LettersController } from './letters.controller';
 import { UsersModule } from '../users/users.module';
 import { CvModule } from '../cv/cv.module';
 import { StorageModule } from '../storage/storage.module';
+import { PdfModule } from '../pdf/pdf.module';
 
 @Module({
   imports: [
@@ -16,8 +17,9 @@ import { StorageModule } from '../storage/storage.module';
       { name: MotivationLetter.name, schema: MotivationLetterSchema },
     ]),
     UsersModule,
-    CvModule,
+    forwardRef(() => CvModule),
     StorageModule,
+    forwardRef(() => PdfModule),
   ],
   controllers: [LettersController],
   providers: [LettersService],

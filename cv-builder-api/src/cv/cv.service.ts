@@ -16,6 +16,7 @@ import { ProjectsContentDto } from './dto/section-content/projects-content.dto';
 import { CertificationsContentDto } from './dto/section-content/certifications-content.dto';
 import { LanguagesContentDto } from './dto/section-content/languages-content.dto';
 import { StorageService } from '../storage/storage.service';
+import { PdfStatus } from '../common/pdf-status.enum';
 
 const CONTENT_DTO_MAP: Record<SectionType, new () => object> = {
   [SectionType.PERSONAL_INFO]: PersonalInfoContentDto,
@@ -118,6 +119,7 @@ export class CvService {
 
     cv.pdfKey = key;
     cv.pdfBackend = backend;
+    cv.pdfStatus = PdfStatus.READY;
     const saved = await cv.save();
     return this.toPlain(saved);
   }
@@ -134,5 +136,15 @@ export class CvService {
 
     const buffer = await this.storageService.download(cv.pdfKey, cv.pdfBackend);
     return { buffer, filename: `${cv.title}.pdf` };
+  }
+
+  async setPdfStatus(
+    id: string,
+    userId: string,
+    status: PdfStatus,
+  ): Promise<void> {
+    const cv = await this.findOneDocument(id, userId);
+    cv.pdfStatus = status;
+    await cv.save();
   }
 }

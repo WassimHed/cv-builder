@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 import { StorageBackend } from '../../storage/interfaces/storage-backend.enum';
+import { PdfStatus } from '../../common/pdf-status.enum';
 
 @Schema({
   timestamps: true,
@@ -34,6 +35,9 @@ export class MotivationLetter extends Document {
 
   @Prop({ type: String, enum: StorageBackend })
   pdfBackend?: StorageBackend;
+
+  @Prop({ type: String, enum: PdfStatus, default: PdfStatus.IDLE })
+  pdfStatus!: PdfStatus;
 }
 
 export const MotivationLetterSchema =

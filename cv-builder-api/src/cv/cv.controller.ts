@@ -22,13 +22,18 @@ import { CreateSectionDto } from './dto/create-section.dto';
 
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
+import { PdfService } from '../pdf/pdf.service';
+import type { AuthenticatedUser } from '../auth/decorators/current-user.decorator';
 
 @ApiTags('cv')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('cv')
 export class CvController {
-  constructor(private readonly cvService: CvService) {}
+  constructor(
+    private readonly cvService: CvService,
+    private readonly pdfService: PdfService,
+  ) {}
 
   @Post()
   create(@CurrentUser() user: { userId: string }, @Body() dto: CreateCvDto) {
@@ -109,5 +114,24 @@ export class CvController {
       'Content-Disposition': `attachment; filename="${filename}"`,
     });
     res.send(buffer);
+  }
+
+  @Post(':id/pdf/generate')
+  @UseGuards(JwtAuthGuard)
+  async generatePdf(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    await this.pdfService.enqueueCvGeneration(id, user.userId);
+    return { status: 'queued' };
+  }
+
+  @Get(':id/pdf/status')
+  @UseGuards(JwtAuthGuard)
+  async getPdfStatus(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return { status: await this.pdfService.getCvStatus(id, user.userId) };
   }
 }
