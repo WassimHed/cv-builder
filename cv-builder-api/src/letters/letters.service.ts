@@ -7,7 +7,7 @@ import { UpdateMotivationLetterDto } from './dto/update-motivation-letter.dto';
 import { UsersService } from '../users/users.service';
 import { CvService } from '../cv/cv.service';
 import { StorageService } from '../storage/storage.service';
-import { StorageBackend } from '../storage/interfaces/storage-backend.enum';
+import { PdfStatus } from '../common/pdf-status.enum';
 
 @Injectable()
 export class LettersService {
@@ -78,7 +78,6 @@ export class LettersService {
     if (result.deletedCount === 0)
       throw new NotFoundException('Motivation letter not found');
   }
-
   async uploadPdf(
     letterId: string,
     userId: string,
@@ -95,6 +94,7 @@ export class LettersService {
 
     letter.pdfKey = key;
     letter.pdfBackend = backend;
+    letter.pdfStatus = PdfStatus.READY;
     const saved = await letter.save();
     return this.toPlain(saved);
   }
@@ -111,12 +111,22 @@ export class LettersService {
 
     const buffer = await this.storageService.download(
       letter.pdfKey,
-      letter.pdfBackend as StorageBackend,
+      letter.pdfBackend,
     );
     const filename = letter.targetCompany
       ? `Letter - ${letter.targetCompany}.pdf`
       : 'Motivation Letter.pdf';
 
     return { buffer, filename };
+  }
+
+  async setPdfStatus(
+    id: string,
+    userId: string,
+    status: PdfStatus,
+  ): Promise<void> {
+    const letter = await this.findOneDocument(id, userId);
+    letter.pdfStatus = status;
+    await letter.save();
   }
 }
