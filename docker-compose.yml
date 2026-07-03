@@ -70,10 +70,19 @@ services:
     depends_on:
       - mongodb
 
+  redis:
+    image: redis:7-alpine
+    container_name: cv-builder-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
 volumes:
   mysql-data:
   minio-data:
   mongo-data:
+  redis-data:
 
 networks:
   cv-builder-network:
