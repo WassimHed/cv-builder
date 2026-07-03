@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
 import { LettersController } from './letters.controller';
 import { LettersService } from './letters.service';
+import { PdfService } from '../pdf/pdf.service';
+import { PdfStatus } from '../common/pdf-status.enum';
 
 describe('LettersController', () => {
   let controller: LettersController;
@@ -14,6 +16,10 @@ describe('LettersController', () => {
     uploadPdf: jest.Mock;
     downloadPdf: jest.Mock;
   };
+  let pdfService: {
+    enqueueLetterGeneration: jest.Mock;
+    getLetterStatus: jest.Mock;
+  };
 
   beforeEach(async () => {
     lettersService = {
@@ -25,6 +31,10 @@ describe('LettersController', () => {
       uploadPdf: jest.fn(),
       downloadPdf: jest.fn(),
     };
+    pdfService = {
+      enqueueLetterGeneration: jest.fn(),
+      getLetterStatus: jest.fn(),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [LettersController],
@@ -32,6 +42,10 @@ describe('LettersController', () => {
         {
           provide: LettersService,
           useValue: lettersService,
+        },
+        {
+          provide: PdfService,
+          useValue: pdfService,
         },
       ],
     }).compile();
@@ -143,5 +157,29 @@ describe('LettersController', () => {
       'Content-Disposition': 'attachment; filename="Motivation Letter.pdf"',
     });
     expect(res.send).toHaveBeenCalledWith(buffer);
+  });
+
+  it('queues PDF generation through the PDF service', async () => {
+    await expect(
+      controller.generatePdf('letter-1', { userId: 'user-1' } as any),
+    ).resolves.toEqual({ status: 'queued' });
+
+    expect(pdfService.enqueueLetterGeneration).toHaveBeenCalledWith(
+      'letter-1',
+      'user-1',
+    );
+  });
+
+  it('returns the PDF status through the PDF service', async () => {
+    pdfService.getLetterStatus.mockResolvedValue(PdfStatus.READY);
+
+    await expect(
+      controller.getPdfStatus('letter-1', { userId: 'user-1' } as any),
+    ).resolves.toEqual({ status: PdfStatus.READY });
+
+    expect(pdfService.getLetterStatus).toHaveBeenCalledWith(
+      'letter-1',
+      'user-1',
+    );
   });
 });
