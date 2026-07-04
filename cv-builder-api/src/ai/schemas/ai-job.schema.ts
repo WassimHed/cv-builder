@@ -40,7 +40,7 @@ export type AiJobDocument = AiJob & Document;
   },
 })
 export class AiJob {
-  @Prop({ required: true, enum: AiJobType })
+  @Prop({ required: true, type: String, enum: AiJobType })
   type!: AiJobType;
 
   @Prop({ required: true, type: Types.ObjectId })
@@ -58,7 +58,12 @@ export class AiJob {
   @Prop({ required: true, type: String })
   userId!: string;
 
-  @Prop({ required: true, enum: AiJobStatus, default: AiJobStatus.PENDING })
+  @Prop({
+    required: true,
+    type: String,
+    enum: AiJobStatus,
+    default: AiJobStatus.PENDING,
+  })
   status!: AiJobStatus;
 
   @Prop({ type: Object, default: null })

@@ -30,8 +30,14 @@ describe('CvService', () => {
     };
 
     doc.toJSON = jest.fn(() => {
-      const { $__: _, _doc: __, $isNew: ___, save: ____, toJSON: _____, ...rest } =
-        doc;
+      const {
+        $__: _,
+        _doc: __,
+        $isNew: ___,
+        save: ____,
+        toJSON: _____,
+        ...rest
+      } = doc;
 
       const rawId = rest._id;
       const serializedId =
@@ -128,11 +134,17 @@ describe('CvService', () => {
       _id: 'cv-1',
       userId: 'user-1',
       title: 'Frontend CV',
-      sections: [] as Array<{ type: SectionType; order: number; content: unknown }>,
+      sections: [] as Array<{
+        type: SectionType;
+        order: number;
+        content: unknown;
+      }>,
     });
 
     cvModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(cv) });
-    jest.spyOn(service as any, 'validateSectionContent').mockResolvedValue(undefined);
+    jest
+      .spyOn(service as any, 'validateSectionContent')
+      .mockResolvedValue(undefined);
 
     const result = await service.addSection('cv-1', 'user-1', {
       type: SectionType.SKILLS,
@@ -155,7 +167,7 @@ describe('CvService', () => {
         skills: ['NestJS'],
       },
     });
-    expect((cv.save as jest.Mock)).toHaveBeenCalled();
+    expect(cv.save as jest.Mock).toHaveBeenCalled();
   });
 
   it('returns plain JSON for created and fetched CVs', async () => {
