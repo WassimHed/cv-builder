@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { CvModule } from './cv/cv.module';
 import { LettersModule } from './letters/letters.module';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { LettersModule } from './letters/letters.module';
     AuthModule,
     CvModule,
     LettersModule,
+    AiModule,
   ],
   controllers: [AppController],
   providers: [AppService],

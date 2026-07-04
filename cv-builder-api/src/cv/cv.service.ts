@@ -18,6 +18,11 @@ import { LanguagesContentDto } from './dto/section-content/languages-content.dto
 import { StorageService } from '../storage/storage.service';
 import { PdfStatus } from '../common/pdf-status.enum';
 
+type AiSuggestion = {
+  original: string;
+  improved: string;
+};
+
 const CONTENT_DTO_MAP: Record<SectionType, new () => object> = {
   [SectionType.PERSONAL_INFO]: PersonalInfoContentDto,
   [SectionType.EXPERIENCE]: ExperienceContentDto,
@@ -104,6 +109,63 @@ export class CvService {
     await this.validateSectionContent(dto);
     const cv = await this.findOneDocument(cvId, userId);
     cv.sections.push({ ...dto });
+    const saved = await cv.save();
+    return this.toPlain(saved);
+  }
+
+  private replaceText(
+    value: unknown,
+    original: string,
+    improved: string,
+  ): unknown {
+    if (typeof value === 'string') {
+      if (value === original) {
+        return improved;
+      }
+
+      return value.includes(original)
+        ? value.split(original).join(improved)
+        : value;
+    }
+
+    if (Array.isArray(value)) {
+      return value.map((item) => this.replaceText(item, original, improved));
+    }
+
+    if (value && typeof value === 'object') {
+      return Object.fromEntries(
+        Object.entries(value).map(([key, entry]) => [
+          key,
+          this.replaceText(entry, original, improved),
+        ]),
+      );
+    }
+
+    return value;
+  }
+
+  async applyAiSuggestions(
+    cvId: string,
+    userId: string,
+    sectionType: SectionType,
+    sectionOrder: number,
+    suggestions: AiSuggestion[],
+  ): Promise<Cv> {
+    const cv = await this.findOneDocument(cvId, userId);
+    const section = cv.sections.find(
+      (entry) => entry.type === sectionType && entry.order === sectionOrder,
+    );
+
+    if (!section) {
+      throw new NotFoundException('CV section not found');
+    }
+
+    section.content = suggestions.reduce(
+      (content, suggestion) =>
+        this.replaceText(content, suggestion.original, suggestion.improved),
+      section.content,
+    );
+
     const saved = await cv.save();
     return this.toPlain(saved);
   }
