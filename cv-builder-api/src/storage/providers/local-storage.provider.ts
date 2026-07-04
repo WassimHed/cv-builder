@@ -20,7 +20,7 @@ export class LocalStorageProvider implements StorageProvider {
   async upload(
     key: string,
     buffer: Buffer,
-    contentType: string,
+    _contentType: string,
   ): Promise<void> {
     const filePath = this.resolvePath(key);
     await fs.mkdir(path.dirname(filePath), { recursive: true });
