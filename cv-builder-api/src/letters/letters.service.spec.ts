@@ -35,8 +35,14 @@ describe('LettersService', () => {
     };
 
     doc.toJSON = jest.fn(() => {
-      const { $__: _, _doc: __, $isNew: ___, save: ____, toJSON: _____, ...rest } =
-        doc;
+      const {
+        $__: _,
+        _doc: __,
+        $isNew: ___,
+        save: ____,
+        toJSON: _____,
+        ...rest
+      } = doc;
       return {
         ...rest,
         _id: String(rest._id ?? 'letter-1'),
@@ -168,7 +174,9 @@ describe('LettersService', () => {
       content: 'Cover letter content',
     });
 
-    letterModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(letter) });
+    letterModel.findOne.mockReturnValue({
+      exec: jest.fn().mockResolvedValue(letter),
+    });
     storageService.upload.mockResolvedValue({ backend: StorageBackend.LOCAL });
 
     const result = await service.uploadPdf(
@@ -182,7 +190,7 @@ describe('LettersService', () => {
       expect.any(Buffer),
       'application/pdf',
     );
-    expect((letter.save as jest.Mock)).toHaveBeenCalled();
+    expect(letter.save as jest.Mock).toHaveBeenCalled();
     expect(result).toMatchObject({
       _id: 'letter-1',
       pdfKey: 'letter-pdfs/letter-1.pdf',
@@ -200,7 +208,9 @@ describe('LettersService', () => {
       pdfBackend: StorageBackend.MINIO,
     });
 
-    letterModel.findOne.mockReturnValue({ exec: jest.fn().mockResolvedValue(letter) });
+    letterModel.findOne.mockReturnValue({
+      exec: jest.fn().mockResolvedValue(letter),
+    });
     storageService.download.mockResolvedValue(Buffer.from('pdf-bytes'));
 
     const result = await service.downloadPdf('letter-1', 'user-1');

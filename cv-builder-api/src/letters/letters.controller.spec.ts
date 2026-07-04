@@ -88,11 +88,9 @@ describe('LettersController', () => {
   it('forwards reads and mutations to the service', () => {
     controller.findAll({ userId: 'user-1' });
     controller.findOne({ userId: 'user-1' }, 'letter-1');
-    controller.update(
-      { userId: 'user-1' },
-      'letter-1',
-      { targetRole: 'Senior Developer' },
-    );
+    controller.update({ userId: 'user-1' }, 'letter-1', {
+      targetRole: 'Senior Developer',
+    });
     controller.remove({ userId: 'user-1' }, 'letter-1');
 
     expect(lettersService.findAllByUser).toHaveBeenCalledWith('user-1');
@@ -111,14 +109,10 @@ describe('LettersController', () => {
 
   it('rejects upload when file is not a PDF', async () => {
     await expect(
-      controller.uploadPdf(
-        { userId: 'user-1' },
-        'letter-1',
-        {
-          mimetype: 'image/png',
-          buffer: Buffer.from('bytes'),
-        } as Express.Multer.File,
-      ),
+      controller.uploadPdf({ userId: 'user-1' }, 'letter-1', {
+        mimetype: 'image/png',
+        buffer: Buffer.from('bytes'),
+      } as Express.Multer.File),
     ).rejects.toThrow(BadRequestException);
   });
 
@@ -151,7 +145,10 @@ describe('LettersController', () => {
 
     await controller.downloadPdf({ userId: 'user-1' }, 'letter-1', res);
 
-    expect(lettersService.downloadPdf).toHaveBeenCalledWith('letter-1', 'user-1');
+    expect(lettersService.downloadPdf).toHaveBeenCalledWith(
+      'letter-1',
+      'user-1',
+    );
     expect(res.set).toHaveBeenCalledWith({
       'Content-Type': 'application/pdf',
       'Content-Disposition': 'attachment; filename="Motivation Letter.pdf"',
