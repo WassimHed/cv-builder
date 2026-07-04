@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: cv_builder
+          MYSQL_USER: cv_builder_user
+          MYSQL_PASSWORD: changeme
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd="mongosh --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    defaults:
+      run:
+        working-directory: cv-builder-api
+
+    env:
+      PORT: 3000
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_USERNAME: cv_builder_user
+      DB_PASSWORD: changeme
+      DB_DATABASE: cv_builder
+      JWT_SECRET: ci_test_secret
+      JWT_EXPIRATION_TIME: 1d
+      MONGODB_URI: mongodb://127.0.0.1:27017/cv_builder_test
+      MINIO_ENDPOINT: localhost
+      MINIO_API_PORT: 9002
+      MINIO_ROOT_USER: unused
+      MINIO_ROOT_PASSWORD: unused
+      MINIO_BUCKET: cv-builder
+      LOCAL_STORAGE_PATH: ./storage-fallback
+      BULL_REDIS_HOST: 127.0.0.1
+      BULL_REDIS_PORT: 6379
+      GEMINI_API_KEY: ci_test_key_unused
+      LANGUAGETOOL_URL: https://api.languagetool.org/v2/check
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'yarn'
+          cache-dependency-path: cv-builder-api/yarn.lock
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Lint
+        run: yarn lint
+
+      - name: Run unit tests
+        run: yarn test
+
+      - name: Run e2e tests
+        run: yarn test:e2e
