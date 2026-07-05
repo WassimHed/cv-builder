@@ -52,6 +52,22 @@ class EnvironmentVariables {
   @IsInt()
   @Type(() => Number)
   BULL_REDIS_PORT!: number;
+
+  @IsString()
+  SMTP_HOST!: string;
+
+  @IsInt()
+  @Type(() => Number)
+  SMTP_PORT!: number;
+
+  @IsString()
+  SMTP_USER!: string;
+
+  @IsString()
+  SMTP_PASS!: string;
+
+  @IsString()
+  SMTP_FROM!: string;
 }
 
 export function validate(config: Record<string, unknown>) {

@@ -77,12 +77,19 @@ services:
       - "6379:6379"
     volumes:
       - redis-data:/data
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: cv-builder-mailhog
+    ports:
+      - '1025:1025'   # SMTP port - your app sends emails here
+      - '8025:8025'   # Web UI - view caught emails in browser   # match whatever network name your other services use
 
 volumes:
   mysql-data:
   minio-data:
   mongo-data:
   redis-data:
+  mailhog-data:
 
 networks:
   cv-builder-network:
