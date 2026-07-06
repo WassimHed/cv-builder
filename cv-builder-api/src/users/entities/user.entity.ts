@@ -25,6 +25,12 @@ export class User {
   @Column()
   lastName!: string;
 
+  @Column({ default: 0 })
+  failedLoginAttempts!: number;
+
+  @Column({ type: 'timestamp', nullable: true, default: null })
+  lockedUntil!: Date | null;
+
   @CreateDateColumn()
   createdAt!: Date;
 

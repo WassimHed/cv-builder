@@ -28,13 +28,23 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    if (this.usersService.isLocked(user)) {
+      throw new UnauthorizedException(
+        'Account temporarily locked due to too many failed login attempts. Please try again later.',
+      );
+    }
+
     const isPasswordValid = await this.usersService.validatePassword(
       loginDto.password,
       user.password,
     );
+
     if (!isPasswordValid) {
+      await this.usersService.registerFailedAttempt(user);
       throw new UnauthorizedException('Invalid credentials');
     }
+
+    await this.usersService.resetFailedAttempts(user);
 
     return this.buildAuthResponse(
       user.id,
