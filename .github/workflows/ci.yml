@@ -40,32 +40,32 @@ services:
           - 1025:1025
           - 8025:8025
 
-    defaults:
-      run:
-        working-directory: cv-builder-api
+      defaults:
+        run:
+          working-directory: cv-builder-api
 
-    env:
-      PORT: 3000
-      DB_HOST: 127.0.0.1
-      DB_PORT: 3306
-      DB_USERNAME: cv_builder_user
-      DB_PASSWORD: changeme
-      DB_DATABASE: cv_builder
-      JWT_SECRET: ci_test_secret
-      JWT_EXPIRATION_TIME: 1d
-      MONGODB_URI: mongodb://127.0.0.1:27017/cv_builder_test
-      MINIO_ENDPOINT: localhost
-      MINIO_API_PORT: 9002
-      MINIO_ROOT_USER: unused
-      MINIO_ROOT_PASSWORD: unused
-      MINIO_BUCKET: cv-builder
-      LOCAL_STORAGE_PATH: ./storage-fallback
-      BULL_REDIS_HOST: 127.0.0.1
-      BULL_REDIS_PORT: 6379
-      GEMINI_API_KEY: ci_test_key_unused
-      LANGUAGETOOL_URL: https://api.languagetool.org/v2/check
-      SMTP_HOST: 127.0.0.1
-      SMTP_PORT: 1025
-      SMTP_USER: ''
-      SMTP_PASS: ''
-      SMTP_FROM: noreply@cv-builder.local
+      env:
+        PORT: 3000
+        DB_HOST: 127.0.0.1
+        DB_PORT: 3306
+        DB_USERNAME: cv_builder_user
+        DB_PASSWORD: changeme
+        DB_DATABASE: cv_builder
+        JWT_SECRET: ci_test_secret
+        JWT_EXPIRATION_TIME: 1d
+        MONGODB_URI: mongodb://127.0.0.1:27017/cv_builder_test
+        MINIO_ENDPOINT: localhost
+        MINIO_API_PORT: 9002
+        MINIO_ROOT_USER: unused
+        MINIO_ROOT_PASSWORD: unused
+        MINIO_BUCKET: cv-builder
+        LOCAL_STORAGE_PATH: ./storage-fallback
+        BULL_REDIS_HOST: 127.0.0.1
+        BULL_REDIS_PORT: 6379
+        GEMINI_API_KEY: ci_test_key_unused
+        LANGUAGETOOL_URL: https://api.languagetool.org/v2/check
+        SMTP_HOST: 127.0.0.1
+        SMTP_PORT: 1025
+        SMTP_USER: ''
+        SMTP_PASS: ''
+        SMTP_FROM: noreply@cv-builder.local
