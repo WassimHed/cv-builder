@@ -1,16 +1,4 @@
-name: CI
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-
-    services:
+services:
       mysql:
         image: mysql:8
         env:
@@ -46,6 +34,12 @@ jobs:
           --health-timeout=5s
           --health-retries=5
 
+      mailhog:
+        image: mailhog/mailhog:v1.0.1
+        ports:
+          - 1025:1025
+          - 8025:8025
+
     defaults:
       run:
         working-directory: cv-builder-api
@@ -70,26 +64,8 @@ jobs:
       BULL_REDIS_PORT: 6379
       GEMINI_API_KEY: ci_test_key_unused
       LANGUAGETOOL_URL: https://api.languagetool.org/v2/check
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'yarn'
-          cache-dependency-path: cv-builder-api/yarn.lock
-
-      - name: Install dependencies
-        run: yarn install --frozen-lockfile
-
-      - name: Lint
-        run: yarn lint
-
-      - name: Run unit tests
-        run: yarn test
-
-      - name: Run e2e tests
-        run: yarn test:e2e
+      SMTP_HOST: 127.0.0.1
+      SMTP_PORT: 1025
+      SMTP_USER: ''
+      SMTP_PASS: ''
+      SMTP_FROM: noreply@cv-builder.local
