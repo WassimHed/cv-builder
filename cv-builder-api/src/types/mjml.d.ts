@@ -18,5 +18,5 @@ declare module 'mjml' {
   export default function mjml2html(
     input: string,
     options?: MJMLParsingOptions,
-  ): MJMLParseResults;
+  ): Promise<MJMLParseResults>;
 }

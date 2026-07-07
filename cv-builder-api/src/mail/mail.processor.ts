@@ -9,7 +9,6 @@ import { join } from 'path';
 import { SendEmailJobDto } from './dto/send-email-job.dto';
 import { MAIL_QUEUE } from './constants/mail.constants';
 
-// ...rest of the file stays identical
 @Processor(MAIL_QUEUE)
 export class MailProcessor extends WorkerHost {
   private readonly logger = new Logger(MailProcessor.name);
@@ -38,7 +37,7 @@ export class MailProcessor extends WorkerHost {
     const templatePath = join(__dirname, 'templates', `${template}.mjml`);
     const rawMjml = readFileSync(templatePath, 'utf-8');
     const interpolated = this.interpolate(rawMjml, context);
-    const { html, errors } = mjml2html(interpolated);
+    const { html, errors } = await mjml2html(interpolated);
 
     if (errors?.length) {
       this.logger.warn(
