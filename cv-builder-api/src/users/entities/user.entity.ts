@@ -42,4 +42,13 @@ export class User {
 
   @Column({ type: 'timestamp', nullable: true, default: null })
   resetTokenExpiry!: Date | null;
+
+  @Column({ default: false })
+  isEmailVerified!: boolean;
+
+  @Column({ type: 'varchar', nullable: true, default: null })
+  emailVerificationTokenHash!: string | null;
+
+  @Column({ type: 'timestamp', nullable: true, default: null })
+  emailVerificationTokenExpiry!: Date | null;
 }

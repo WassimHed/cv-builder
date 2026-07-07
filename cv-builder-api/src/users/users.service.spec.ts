@@ -128,4 +128,81 @@ describe('UsersService', () => {
       expect(usersRepository.save).toHaveBeenCalledWith(user);
     });
   });
+
+  describe('email verification', () => {
+    const buildUser = (overrides: Partial<User> = {}): User =>
+      ({
+        id: 'user-1',
+        email: 'jane@example.com',
+        password: 'hashed',
+        firstName: 'Jane',
+        lastName: 'Doe',
+        isEmailVerified: false,
+        emailVerificationTokenHash: null,
+        emailVerificationTokenExpiry: null,
+        ...overrides,
+      }) as User;
+
+    it('generates a token, hashes it, and sets an expiry', async () => {
+      const user = buildUser();
+      usersRepository.save.mockResolvedValue(user);
+
+      const rawToken = await service.generateEmailVerificationToken(user);
+
+      expect(rawToken).toEqual(expect.any(String));
+      expect(user.emailVerificationTokenHash).toEqual(expect.any(String));
+      expect(user.emailVerificationTokenHash).not.toEqual(rawToken);
+      expect(user.emailVerificationTokenExpiry).toBeInstanceOf(Date);
+      expect(user.emailVerificationTokenExpiry!.getTime()).toBeGreaterThan(
+        Date.now(),
+      );
+      expect(usersRepository.save).toHaveBeenCalledWith(user);
+    });
+
+    it('finds a user by a valid, unexpired verification token', async () => {
+      const user = buildUser();
+      usersRepository.save.mockResolvedValue(user);
+      const rawToken = await service.generateEmailVerificationToken(user);
+      usersRepository.findOne.mockResolvedValue(user);
+
+      const found = await service.findByEmailVerificationToken(rawToken);
+
+      expect(found).toEqual(user);
+    });
+
+    it('returns null when the verification token is expired', async () => {
+      const user = buildUser({
+        emailVerificationTokenHash: 'some-hash',
+        emailVerificationTokenExpiry: new Date(Date.now() - 60_000),
+      });
+      usersRepository.findOne.mockResolvedValue(user);
+
+      const found = await service.findByEmailVerificationToken('raw-token');
+
+      expect(found).toBeNull();
+    });
+
+    it('returns null when no user matches the token', async () => {
+      usersRepository.findOne.mockResolvedValue(null);
+
+      const found = await service.findByEmailVerificationToken('raw-token');
+
+      expect(found).toBeNull();
+    });
+
+    it('marks the email as verified and clears the token fields', async () => {
+      const user = buildUser({
+        emailVerificationTokenHash: 'some-hash',
+        emailVerificationTokenExpiry: new Date(Date.now() + 60_000),
+      });
+      usersRepository.save.mockResolvedValue(user);
+
+      await service.markEmailAsVerified(user);
+
+      expect(user.isEmailVerified).toBe(true);
+      expect(user.emailVerificationTokenHash).toBeNull();
+      expect(user.emailVerificationTokenExpiry).toBeNull();
+      expect(usersRepository.save).toHaveBeenCalledWith(user);
+    });
+  });
 });

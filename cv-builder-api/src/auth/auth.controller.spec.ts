@@ -7,12 +7,20 @@ describe('AuthController', () => {
   let authService: {
     register: jest.Mock;
     login: jest.Mock;
+    forgotPassword: jest.Mock;
+    resetPassword: jest.Mock;
+    verifyEmail: jest.Mock;
+    resendVerification: jest.Mock;
   };
 
   beforeEach(async () => {
     authService = {
       register: jest.fn(),
       login: jest.fn(),
+      forgotPassword: jest.fn(),
+      resetPassword: jest.fn(),
+      verifyEmail: jest.fn(),
+      resendVerification: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -57,6 +65,42 @@ describe('AuthController', () => {
     expect(authService.login).toHaveBeenCalledWith({
       email: 'jane@example.com',
       password: 'secret',
+    });
+  });
+
+  it('forwards forgot-password requests to the service', async () => {
+    await controller.forgotPassword({ email: 'jane@example.com' });
+
+    expect(authService.forgotPassword).toHaveBeenCalledWith({
+      email: 'jane@example.com',
+    });
+  });
+
+  it('forwards reset-password requests to the service', async () => {
+    await controller.resetPassword({
+      token: 'some-token',
+      newPassword: 'NewPass123!',
+    });
+
+    expect(authService.resetPassword).toHaveBeenCalledWith({
+      token: 'some-token',
+      newPassword: 'NewPass123!',
+    });
+  });
+
+  it('forwards verify-email requests to the service', async () => {
+    await controller.verifyEmail({ token: 'some-token' });
+
+    expect(authService.verifyEmail).toHaveBeenCalledWith({
+      token: 'some-token',
+    });
+  });
+
+  it('forwards resend-verification requests to the service', async () => {
+    await controller.resendVerification({ email: 'jane@example.com' });
+
+    expect(authService.resendVerification).toHaveBeenCalledWith({
+      email: 'jane@example.com',
     });
   });
 });

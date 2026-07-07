@@ -6,6 +6,7 @@ import { AppModule } from '../src/app.module';
 import { GeminiService } from '../src/ai/gemini/gemini.service';
 import { LanguageToolService } from '../src/ai/grammar/languagetool.service';
 import { SectionType } from '../src/cv/schemas/cv.schema';
+import { UsersService } from '../src/users/users.service';
 
 describe('AI module (e2e)', () => {
   let app: INestApplication<App>;
@@ -29,18 +30,32 @@ describe('AI module (e2e)', () => {
     await app.init();
 
     const uniqueEmail = `ai-e2e-${Date.now()}@example.com`;
+    const password = 'StrongPassword123!';
 
-    const registerRes = await request(app.getHttpServer())
+    await request(app.getHttpServer())
       .post('/auth/register')
       .send({
         email: uniqueEmail,
-        password: 'StrongPassword123!',
+        password,
         firstName: 'AI',
         lastName: 'Tester',
       })
       .expect(201);
 
-    accessToken = registerRes.body.accessToken;
+    // Bypass the real email verification flow in tests: flip the flag directly.
+    const usersService = moduleFixture.get<UsersService>(UsersService);
+    const user = await usersService.findByEmail(uniqueEmail);
+    if (!user) {
+      throw new Error('Test user was not created during registration');
+    }
+    await usersService.markEmailAsVerified(user);
+
+    const loginRes = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: uniqueEmail, password })
+      .expect(200);
+
+    accessToken = loginRes.body.accessToken;
 
     const cvRes = await request(app.getHttpServer())
       .post('/cv')

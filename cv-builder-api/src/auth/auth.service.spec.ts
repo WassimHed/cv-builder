@@ -19,6 +19,9 @@ describe('AuthService', () => {
     generateResetToken: jest.Mock;
     findByResetToken: jest.Mock;
     resetPassword: jest.Mock;
+    generateEmailVerificationToken: jest.Mock;
+    findByEmailVerificationToken: jest.Mock;
+    markEmailAsVerified: jest.Mock;
   };
   let jwtService: {
     sign: jest.Mock;
@@ -41,6 +44,9 @@ describe('AuthService', () => {
       generateResetToken: jest.fn(),
       findByResetToken: jest.fn(),
       resetPassword: jest.fn(),
+      generateEmailVerificationToken: jest.fn(),
+      findByEmailVerificationToken: jest.fn(),
+      markEmailAsVerified: jest.fn(),
     };
 
     jwtService = {
@@ -84,6 +90,45 @@ describe('AuthService', () => {
     expect(service).toBeDefined();
   });
 
+  describe('register', () => {
+    it('creates the user, sends a verification email, and returns a generic message', async () => {
+      const user = {
+        id: 'user-1',
+        email: 'jane@example.com',
+        firstName: 'Jane',
+        lastName: 'Doe',
+      };
+      usersService.create.mockResolvedValue(user);
+      usersService.generateEmailVerificationToken.mockResolvedValue(
+        'raw-verify-token',
+      );
+
+      const result = await service.register({
+        email: 'jane@example.com',
+        password: 'secret',
+        firstName: 'Jane',
+        lastName: 'Doe',
+      });
+
+      expect(usersService.generateEmailVerificationToken).toHaveBeenCalledWith(
+        user,
+      );
+      expect(mailService.queueEmail).toHaveBeenCalledWith({
+        to: 'jane@example.com',
+        subject: 'Verify your email',
+        template: MailTemplate.EMAIL_VERIFICATION,
+        context: {
+          firstName: 'Jane',
+          verifyUrl:
+            'http://localhost:4200/verify-email?token=raw-verify-token',
+        },
+      });
+      expect(result).toEqual({
+        message: 'Registered. Please check your email to verify your account.',
+      });
+    });
+  });
+
   it('logs in with valid credentials', async () => {
     usersService.findByEmail.mockResolvedValue({
       id: 'user-1',
@@ -91,6 +136,7 @@ describe('AuthService', () => {
       password: 'hashed-password',
       firstName: 'Jane',
       lastName: 'Doe',
+      isEmailVerified: true,
     });
     usersService.validatePassword.mockResolvedValue(true);
 
@@ -128,8 +174,26 @@ describe('AuthService', () => {
       password: 'hashed-password',
       firstName: 'Jane',
       lastName: 'Doe',
+      isEmailVerified: true,
     });
     usersService.isLocked.mockReturnValue(true);
+
+    await expect(
+      service.login({ email: 'jane@example.com', password: 'secret' }),
+    ).rejects.toThrow(UnauthorizedException);
+
+    expect(usersService.validatePassword).not.toHaveBeenCalled();
+  });
+
+  it('rejects login for an unverified email without checking the password', async () => {
+    usersService.findByEmail.mockResolvedValue({
+      id: 'user-1',
+      email: 'jane@example.com',
+      password: 'hashed-password',
+      firstName: 'Jane',
+      lastName: 'Doe',
+      isEmailVerified: false,
+    });
 
     await expect(
       service.login({ email: 'jane@example.com', password: 'secret' }),
@@ -145,6 +209,7 @@ describe('AuthService', () => {
       password: 'hashed-password',
       firstName: 'Jane',
       lastName: 'Doe',
+      isEmailVerified: true,
     });
     usersService.validatePassword.mockResolvedValue(false);
 
@@ -233,6 +298,94 @@ describe('AuthService', () => {
       expect(result).toEqual({
         message: 'Password has been reset successfully.',
       });
+    });
+  });
+
+  describe('verifyEmail', () => {
+    it('throws when the token is invalid or expired', async () => {
+      usersService.findByEmailVerificationToken.mockResolvedValue(null);
+
+      await expect(service.verifyEmail({ token: 'bad-token' })).rejects.toThrow(
+        BadRequestException,
+      );
+
+      expect(usersService.markEmailAsVerified).not.toHaveBeenCalled();
+    });
+
+    it('marks the email as verified when the token is valid', async () => {
+      const user = { id: 'user-1', email: 'jane@example.com' };
+      usersService.findByEmailVerificationToken.mockResolvedValue(user);
+
+      const result = await service.verifyEmail({ token: 'good-token' });
+
+      expect(usersService.markEmailAsVerified).toHaveBeenCalledWith(user);
+      expect(result).toEqual({ message: 'Email verified successfully.' });
+    });
+  });
+
+  describe('resendVerification', () => {
+    it('returns a generic message and does nothing when the email does not exist', async () => {
+      usersService.findByEmail.mockResolvedValue(null);
+
+      const result = await service.resendVerification({
+        email: 'ghost@example.com',
+      });
+
+      expect(result.message).toContain('If that email exists');
+      expect(
+        usersService.generateEmailVerificationToken,
+      ).not.toHaveBeenCalled();
+      expect(mailService.queueEmail).not.toHaveBeenCalled();
+    });
+
+    it('returns a generic message and does nothing when the user is already verified', async () => {
+      usersService.findByEmail.mockResolvedValue({
+        id: 'user-1',
+        email: 'jane@example.com',
+        isEmailVerified: true,
+      });
+
+      const result = await service.resendVerification({
+        email: 'jane@example.com',
+      });
+
+      expect(result.message).toContain('If that email exists');
+      expect(
+        usersService.generateEmailVerificationToken,
+      ).not.toHaveBeenCalled();
+      expect(mailService.queueEmail).not.toHaveBeenCalled();
+    });
+
+    it('generates a new token and queues an email for an unverified user', async () => {
+      const user = {
+        id: 'user-1',
+        email: 'jane@example.com',
+        firstName: 'Jane',
+        isEmailVerified: false,
+      };
+      usersService.findByEmail.mockResolvedValue(user);
+      usersService.generateEmailVerificationToken.mockResolvedValue(
+        'raw-verify-token',
+      );
+
+      const result = await service.resendVerification({
+        email: 'jane@example.com',
+      });
+
+      expect(usersService.generateEmailVerificationToken).toHaveBeenCalledWith(
+        user,
+      );
+      expect(mailService.queueEmail).toHaveBeenCalledWith({
+        to: 'jane@example.com',
+        subject: 'Verify your email',
+        template: MailTemplate.EMAIL_VERIFICATION,
+        context: {
+          firstName: 'Jane',
+          verifyUrl:
+            'http://localhost:4200/verify-email?token=raw-verify-token',
+        },
+      });
+      expect(result.message).toContain('If that email exists');
     });
   });
 });

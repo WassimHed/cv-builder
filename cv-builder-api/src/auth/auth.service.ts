@@ -12,7 +12,10 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
+import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
+import { RegisterResponseDto } from './dto/register-response.dto';
 
 @Injectable()
 export class AuthService {
@@ -23,14 +26,27 @@ export class AuthService {
     private readonly configService: ConfigService,
   ) {}
 
-  async register(registerDto: RegisterDto): Promise<AuthResponseDto> {
+  async register(registerDto: RegisterDto): Promise<RegisterResponseDto> {
     const user = await this.usersService.create(registerDto);
-    return this.buildAuthResponse(
-      user.id,
-      user.email,
-      user.firstName,
-      user.lastName,
-    );
+
+    const rawToken =
+      await this.usersService.generateEmailVerificationToken(user);
+    const frontendUrl = this.configService.getOrThrow<string>('FRONTEND_URL');
+    const verifyUrl = `${frontendUrl}/verify-email?token=${rawToken}`;
+
+    await this.mailService.queueEmail({
+      to: user.email,
+      subject: 'Verify your email',
+      template: MailTemplate.EMAIL_VERIFICATION,
+      context: {
+        firstName: user.firstName,
+        verifyUrl,
+      },
+    });
+
+    return {
+      message: 'Registered. Please check your email to verify your account.',
+    };
   }
 
   async login(loginDto: LoginDto): Promise<AuthResponseDto> {
@@ -42,6 +58,12 @@ export class AuthService {
     if (this.usersService.isLocked(user)) {
       throw new UnauthorizedException(
         'Account temporarily locked due to too many failed login attempts. Please try again later.',
+      );
+    }
+
+    if (!user.isEmailVerified) {
+      throw new UnauthorizedException(
+        'Please verify your email before logging in.',
       );
     }
 
@@ -102,6 +124,50 @@ export class AuthService {
     await this.usersService.resetPassword(user, dto.newPassword);
 
     return { message: 'Password has been reset successfully.' };
+  }
+
+  async verifyEmail(dto: VerifyEmailDto): Promise<{ message: string }> {
+    const user = await this.usersService.findByEmailVerificationToken(
+      dto.token,
+    );
+    if (!user) {
+      throw new BadRequestException('Invalid or expired verification token');
+    }
+
+    await this.usersService.markEmailAsVerified(user);
+
+    return { message: 'Email verified successfully.' };
+  }
+
+  async resendVerification(
+    dto: ResendVerificationDto,
+  ): Promise<{ message: string }> {
+    const genericResponse = {
+      message:
+        'If that email exists and is not yet verified, a new verification link has been sent.',
+    };
+
+    const user = await this.usersService.findByEmail(dto.email);
+    if (!user || user.isEmailVerified) {
+      return genericResponse;
+    }
+
+    const rawToken =
+      await this.usersService.generateEmailVerificationToken(user);
+    const frontendUrl = this.configService.getOrThrow<string>('FRONTEND_URL');
+    const verifyUrl = `${frontendUrl}/verify-email?token=${rawToken}`;
+
+    await this.mailService.queueEmail({
+      to: user.email,
+      subject: 'Verify your email',
+      template: MailTemplate.EMAIL_VERIFICATION,
+      context: {
+        firstName: user.firstName,
+        verifyUrl,
+      },
+    });
+
+    return genericResponse;
   }
 
   private buildAuthResponse(

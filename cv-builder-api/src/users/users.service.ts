@@ -10,6 +10,7 @@ const SALT_ROUNDS = 10;
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 const RESET_TOKEN_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes
+const EMAIL_VERIFICATION_TOKEN_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 @Injectable()
 export class UsersService {
@@ -104,6 +105,40 @@ export class UsersService {
     user.resetTokenExpiry = null;
     user.failedLoginAttempts = 0;
     user.lockedUntil = null;
+    await this.usersRepository.save(user);
+  }
+
+  async generateEmailVerificationToken(user: User): Promise<string> {
+    const rawToken = randomUUID();
+    user.emailVerificationTokenHash = this.hashToken(rawToken);
+    user.emailVerificationTokenExpiry = new Date(
+      Date.now() + EMAIL_VERIFICATION_TOKEN_EXPIRY_MS,
+    );
+    await this.usersRepository.save(user);
+    return rawToken;
+  }
+
+  async findByEmailVerificationToken(rawToken: string): Promise<User | null> {
+    const tokenHash = this.hashToken(rawToken);
+    const user = await this.usersRepository.findOne({
+      where: { emailVerificationTokenHash: tokenHash },
+    });
+
+    if (!user || !user.emailVerificationTokenExpiry) {
+      return null;
+    }
+
+    if (user.emailVerificationTokenExpiry.getTime() < Date.now()) {
+      return null;
+    }
+
+    return user;
+  }
+
+  async markEmailAsVerified(user: User): Promise<void> {
+    user.isEmailVerified = true;
+    user.emailVerificationTokenHash = null;
+    user.emailVerificationTokenExpiry = null;
     await this.usersRepository.save(user);
   }
 }
