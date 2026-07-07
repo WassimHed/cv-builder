@@ -2,12 +2,14 @@ import { Injectable, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import { createHash, randomUUID } from 'crypto';
 import { User } from './entities/user.entity';
 import { RegisterDto } from '../auth/dto/register.dto';
 
 const SALT_ROUNDS = 10;
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
+const RESET_TOKEN_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes
 
 @Injectable()
 export class UsersService {
@@ -62,6 +64,44 @@ export class UsersService {
   }
 
   async resetFailedAttempts(user: User): Promise<void> {
+    user.failedLoginAttempts = 0;
+    user.lockedUntil = null;
+    await this.usersRepository.save(user);
+  }
+
+  private hashToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
+  }
+
+  async generateResetToken(user: User): Promise<string> {
+    const rawToken = randomUUID();
+    user.resetTokenHash = this.hashToken(rawToken);
+    user.resetTokenExpiry = new Date(Date.now() + RESET_TOKEN_EXPIRY_MS);
+    await this.usersRepository.save(user);
+    return rawToken;
+  }
+
+  async findByResetToken(rawToken: string): Promise<User | null> {
+    const tokenHash = this.hashToken(rawToken);
+    const user = await this.usersRepository.findOne({
+      where: { resetTokenHash: tokenHash },
+    });
+
+    if (!user || !user.resetTokenExpiry) {
+      return null;
+    }
+
+    if (user.resetTokenExpiry.getTime() < Date.now()) {
+      return null;
+    }
+
+    return user;
+  }
+
+  async resetPassword(user: User, newPassword: string): Promise<void> {
+    user.password = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    user.resetTokenHash = null;
+    user.resetTokenExpiry = null;
     user.failedLoginAttempts = 0;
     user.lockedUntil = null;
     await this.usersRepository.save(user);

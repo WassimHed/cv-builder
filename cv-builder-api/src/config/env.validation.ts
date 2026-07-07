@@ -68,6 +68,9 @@ class EnvironmentVariables {
 
   @IsString()
   SMTP_FROM!: string;
+
+  @IsString()
+  FRONTEND_URL!: string;
 }
 
 export function validate(config: Record<string, unknown>) {

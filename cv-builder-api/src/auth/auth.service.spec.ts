@@ -1,8 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { UnauthorizedException } from '@nestjs/common';
+import { UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
+import { MailService } from '../mail/mail.service';
+import { MailTemplate } from '../mail/dto/send-email-job.dto';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -13,9 +16,18 @@ describe('AuthService', () => {
     isLocked: jest.Mock;
     registerFailedAttempt: jest.Mock;
     resetFailedAttempts: jest.Mock;
+    generateResetToken: jest.Mock;
+    findByResetToken: jest.Mock;
+    resetPassword: jest.Mock;
   };
   let jwtService: {
     sign: jest.Mock;
+  };
+  let mailService: {
+    queueEmail: jest.Mock;
+  };
+  let configService: {
+    getOrThrow: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -26,10 +38,21 @@ describe('AuthService', () => {
       isLocked: jest.fn().mockReturnValue(false),
       registerFailedAttempt: jest.fn(),
       resetFailedAttempts: jest.fn(),
+      generateResetToken: jest.fn(),
+      findByResetToken: jest.fn(),
+      resetPassword: jest.fn(),
     };
 
     jwtService = {
       sign: jest.fn().mockReturnValue('token-1'),
+    };
+
+    mailService = {
+      queueEmail: jest.fn(),
+    };
+
+    configService = {
+      getOrThrow: jest.fn().mockReturnValue('http://localhost:4200'),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -42,6 +65,14 @@ describe('AuthService', () => {
         {
           provide: JwtService,
           useValue: jwtService,
+        },
+        {
+          provide: MailService,
+          useValue: mailService,
+        },
+        {
+          provide: ConfigService,
+          useValue: configService,
         },
       ],
     }).compile();
@@ -123,5 +154,85 @@ describe('AuthService', () => {
 
     expect(usersService.registerFailedAttempt).toHaveBeenCalled();
     expect(usersService.resetFailedAttempts).not.toHaveBeenCalled();
+  });
+
+  describe('forgotPassword', () => {
+    it('returns a generic message and does nothing when the email does not exist', async () => {
+      usersService.findByEmail.mockResolvedValue(null);
+
+      const result = await service.forgotPassword({
+        email: 'ghost@example.com',
+      });
+
+      expect(result).toEqual({
+        message: 'If that email exists, a reset link has been sent.',
+      });
+      expect(usersService.generateResetToken).not.toHaveBeenCalled();
+      expect(mailService.queueEmail).not.toHaveBeenCalled();
+    });
+
+    it('generates a token and queues an email when the user exists', async () => {
+      const user = {
+        id: 'user-1',
+        email: 'jane@example.com',
+        firstName: 'Jane',
+        lastName: 'Doe',
+      };
+      usersService.findByEmail.mockResolvedValue(user);
+      usersService.generateResetToken.mockResolvedValue('raw-token-123');
+
+      const result = await service.forgotPassword({
+        email: 'jane@example.com',
+      });
+
+      expect(usersService.generateResetToken).toHaveBeenCalledWith(user);
+      expect(mailService.queueEmail).toHaveBeenCalledWith({
+        to: 'jane@example.com',
+        subject: 'Reset your password',
+        template: MailTemplate.PASSWORD_RESET,
+        context: {
+          firstName: 'Jane',
+          resetUrl: 'http://localhost:4200/reset-password?token=raw-token-123',
+          expiryMinutes: 15,
+        },
+      });
+      expect(result).toEqual({
+        message: 'If that email exists, a reset link has been sent.',
+      });
+    });
+  });
+
+  describe('resetPassword', () => {
+    it('throws when the token is invalid or expired', async () => {
+      usersService.findByResetToken.mockResolvedValue(null);
+
+      await expect(
+        service.resetPassword({
+          token: 'bad-token',
+          newPassword: 'NewPass123!',
+        }),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(usersService.resetPassword).not.toHaveBeenCalled();
+    });
+
+    it('resets the password when the token is valid', async () => {
+      const user = { id: 'user-1', email: 'jane@example.com' };
+      usersService.findByResetToken.mockResolvedValue(user);
+
+      const result = await service.resetPassword({
+        token: 'good-token',
+        newPassword: 'NewPass123!',
+      });
+
+      expect(usersService.findByResetToken).toHaveBeenCalledWith('good-token');
+      expect(usersService.resetPassword).toHaveBeenCalledWith(
+        user,
+        'NewPass123!',
+      );
+      expect(result).toEqual({
+        message: 'Password has been reset successfully.',
+      });
+    });
   });
 });

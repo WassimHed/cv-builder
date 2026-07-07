@@ -73,6 +73,7 @@ jobs:
       SMTP_USER: ""
       SMTP_PASS: ""
       SMTP_FROM: noreply@cv-builder.local
+      FRONTEND_URL: http://localhost:4200
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

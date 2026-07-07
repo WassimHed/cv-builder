@@ -36,4 +36,10 @@ export class User {
 
   @UpdateDateColumn()
   updatedAt!: Date;
+
+  @Column({ type: 'varchar', nullable: true, default: null })
+  resetTokenHash!: string | null;
+
+  @Column({ type: 'timestamp', nullable: true, default: null })
+  resetTokenExpiry!: Date | null;
 }
