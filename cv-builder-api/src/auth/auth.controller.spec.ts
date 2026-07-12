@@ -11,6 +11,7 @@ describe('AuthController', () => {
     resetPassword: jest.Mock;
     verifyEmail: jest.Mock;
     resendVerification: jest.Mock;
+    changePassword: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -21,6 +22,7 @@ describe('AuthController', () => {
       resetPassword: jest.fn(),
       verifyEmail: jest.fn(),
       resendVerification: jest.fn(),
+      changePassword: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -101,6 +103,18 @@ describe('AuthController', () => {
 
     expect(authService.resendVerification).toHaveBeenCalledWith({
       email: 'jane@example.com',
+    });
+  });
+
+  it('forwards change-password requests to the service', async () => {
+    await controller.changePassword(
+      { userId: 'user-1', email: 'jane@example.com' },
+      { currentPassword: 'old-password', newPassword: 'NewPass123!' },
+    );
+
+    expect(authService.changePassword).toHaveBeenCalledWith('user-1', {
+      currentPassword: 'old-password',
+      newPassword: 'NewPass123!',
     });
   });
 });

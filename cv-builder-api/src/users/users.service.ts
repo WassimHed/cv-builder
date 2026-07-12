@@ -105,6 +105,7 @@ export class UsersService {
     user.resetTokenExpiry = null;
     user.failedLoginAttempts = 0;
     user.lockedUntil = null;
+    user.passwordChangedAt = new Date();
     await this.usersRepository.save(user);
   }
 
@@ -139,6 +140,12 @@ export class UsersService {
     user.isEmailVerified = true;
     user.emailVerificationTokenHash = null;
     user.emailVerificationTokenExpiry = null;
+    await this.usersRepository.save(user);
+  }
+
+  async changePassword(user: User, newPassword: string): Promise<void> {
+    user.password = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    user.passwordChangedAt = new Date();
     await this.usersRepository.save(user);
   }
 }

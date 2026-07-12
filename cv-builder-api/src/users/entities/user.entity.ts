@@ -51,4 +51,7 @@ export class User {
 
   @Column({ type: 'timestamp', nullable: true, default: null })
   emailVerificationTokenExpiry!: Date | null;
+
+  @Column({ type: 'timestamp', nullable: true, default: null })
+  passwordChangedAt!: Date | null;
 }

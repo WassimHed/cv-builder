@@ -205,4 +205,23 @@ describe('UsersService', () => {
       expect(usersRepository.save).toHaveBeenCalledWith(user);
     });
   });
+  describe('changePassword', () => {
+    it('hashes the new password and sets passwordChangedAt', async () => {
+      const user = {
+        id: 'user-1',
+        email: 'jane@example.com',
+        password: 'old-hashed',
+        firstName: 'Jane',
+        lastName: 'Doe',
+        passwordChangedAt: null,
+      } as User;
+      usersRepository.save.mockResolvedValue(user);
+
+      await service.changePassword(user, 'NewStrongPassword123!');
+
+      expect(user.password).not.toBe('old-hashed');
+      expect(user.passwordChangedAt).toBeInstanceOf(Date);
+      expect(usersRepository.save).toHaveBeenCalledWith(user);
+    });
+  });
 });

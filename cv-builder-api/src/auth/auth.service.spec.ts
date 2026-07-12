@@ -12,6 +12,7 @@ describe('AuthService', () => {
   let usersService: {
     create: jest.Mock;
     findByEmail: jest.Mock;
+    findById: jest.Mock;
     validatePassword: jest.Mock;
     isLocked: jest.Mock;
     registerFailedAttempt: jest.Mock;
@@ -22,6 +23,7 @@ describe('AuthService', () => {
     generateEmailVerificationToken: jest.Mock;
     findByEmailVerificationToken: jest.Mock;
     markEmailAsVerified: jest.Mock;
+    changePassword: jest.Mock;
   };
   let jwtService: {
     sign: jest.Mock;
@@ -37,6 +39,7 @@ describe('AuthService', () => {
     usersService = {
       create: jest.fn(),
       findByEmail: jest.fn(),
+      findById: jest.fn(),
       validatePassword: jest.fn(),
       isLocked: jest.fn().mockReturnValue(false),
       registerFailedAttempt: jest.fn(),
@@ -47,6 +50,7 @@ describe('AuthService', () => {
       generateEmailVerificationToken: jest.fn(),
       findByEmailVerificationToken: jest.fn(),
       markEmailAsVerified: jest.fn(),
+      changePassword: jest.fn(),
     };
 
     jwtService = {
@@ -386,6 +390,66 @@ describe('AuthService', () => {
         },
       });
       expect(result.message).toContain('If that email exists');
+    });
+  });
+
+  describe('changePassword', () => {
+    it('throws when the user cannot be found', async () => {
+      usersService.findById.mockResolvedValue(null);
+
+      await expect(
+        service.changePassword('user-1', {
+          currentPassword: 'old',
+          newPassword: 'NewStrongPassword123!',
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('throws when the current password is incorrect', async () => {
+      usersService.findById.mockResolvedValue({
+        id: 'user-1',
+        email: 'jane@example.com',
+        password: 'hashed-password',
+        firstName: 'Jane',
+      });
+      usersService.validatePassword.mockResolvedValue(false);
+
+      await expect(
+        service.changePassword('user-1', {
+          currentPassword: 'wrong',
+          newPassword: 'NewStrongPassword123!',
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+
+      expect(usersService.changePassword).not.toHaveBeenCalled();
+    });
+
+    it('changes the password and sends a notification email', async () => {
+      const user = {
+        id: 'user-1',
+        email: 'jane@example.com',
+        password: 'hashed-password',
+        firstName: 'Jane',
+      };
+      usersService.findById.mockResolvedValue(user);
+      usersService.validatePassword.mockResolvedValue(true);
+
+      const result = await service.changePassword('user-1', {
+        currentPassword: 'old-password',
+        newPassword: 'NewStrongPassword123!',
+      });
+
+      expect(usersService.changePassword).toHaveBeenCalledWith(
+        user,
+        'NewStrongPassword123!',
+      );
+      expect(mailService.queueEmail).toHaveBeenCalledWith({
+        to: 'jane@example.com',
+        subject: 'Your password was changed',
+        template: MailTemplate.PASSWORD_CHANGED,
+        context: { firstName: 'Jane' },
+      });
+      expect(result).toEqual({ message: 'Password changed successfully.' });
     });
   });
 });

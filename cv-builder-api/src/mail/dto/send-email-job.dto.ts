@@ -1,6 +1,7 @@
 export enum MailTemplate {
   PASSWORD_RESET = 'password-reset',
   EMAIL_VERIFICATION = 'email-verification',
+  PASSWORD_CHANGED = 'password-changed',
 }
 
 export interface SendEmailJobDto {

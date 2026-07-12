@@ -14,6 +14,7 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { ResendVerificationDto } from './dto/resend-verification.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { RegisterResponseDto } from './dto/register-response.dto';
 
@@ -168,6 +169,35 @@ export class AuthService {
     });
 
     return genericResponse;
+  }
+
+  async changePassword(
+    userId: string,
+    dto: ChangePasswordDto,
+  ): Promise<{ message: string }> {
+    const user = await this.usersService.findById(userId);
+    if (!user) {
+      throw new UnauthorizedException();
+    }
+
+    const isCurrentPasswordValid = await this.usersService.validatePassword(
+      dto.currentPassword,
+      user.password,
+    );
+    if (!isCurrentPasswordValid) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+
+    await this.usersService.changePassword(user, dto.newPassword);
+
+    await this.mailService.queueEmail({
+      to: user.email,
+      subject: 'Your password was changed',
+      template: MailTemplate.PASSWORD_CHANGED,
+      context: { firstName: user.firstName },
+    });
+
+    return { message: 'Password changed successfully.' };
   }
 
   private buildAuthResponse(
