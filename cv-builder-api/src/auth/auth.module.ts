@@ -2,18 +2,22 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PassportModule } from '@nestjs/passport';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import type { StringValue } from 'ms';
 import { UsersModule } from '../users/users.module';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { MailModule } from '../mail/mail.module';
+import { RefreshToken } from './entities/refresh-token.entity';
+import { RefreshTokensService } from './refresh-tokens.service';
 
 @Module({
   imports: [
     UsersModule,
     PassportModule,
     MailModule,
+    TypeOrmModule.forFeature([RefreshToken]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -27,7 +31,7 @@ import { MailModule } from '../mail/mail.module';
       }),
     }),
   ],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, RefreshTokensService],
   controllers: [AuthController],
   exports: [AuthService],
 })

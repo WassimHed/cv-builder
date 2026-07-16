@@ -3,10 +3,12 @@ import {
   Controller,
   Post,
   Get,
+  Req,
   UseGuards,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import {
   ApiTags,
   ApiOperation,
@@ -14,7 +16,7 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { AuthService } from './auth.service';
+import { AuthService, RequestContext } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
@@ -22,6 +24,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { RegisterResponseDto } from './dto/register-response.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -31,6 +34,13 @@ import { CurrentUser } from './decorators/current-user.decorator';
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  private requestContext(req: Request): RequestContext {
+    return {
+      userAgent: req?.headers?.['user-agent'],
+      ipAddress: req?.ip,
+    };
+  }
 
   @Post('register')
   @Throttle({ default: { limit: 5, ttl: 60000 } })
@@ -47,8 +57,45 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Log in with email and password' })
   @ApiResponse({ status: 200, type: AuthResponseDto })
-  async login(@Body() loginDto: LoginDto): Promise<AuthResponseDto> {
-    return this.authService.login(loginDto);
+  async login(
+    @Body() loginDto: LoginDto,
+    @Req() req: Request,
+  ): Promise<AuthResponseDto> {
+    return this.authService.login(loginDto, this.requestContext(req));
+  }
+
+  @Post('refresh')
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Exchange a refresh token for a new token pair' })
+  @ApiResponse({ status: 200, type: AuthResponseDto })
+  async refresh(
+    @Body() refreshTokenDto: RefreshTokenDto,
+    @Req() req: Request,
+  ): Promise<AuthResponseDto> {
+    return this.authService.refresh(refreshTokenDto, this.requestContext(req));
+  }
+
+  @Post('logout')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Revoke the current session refresh token' })
+  async logout(
+    @Body() refreshTokenDto: RefreshTokenDto,
+  ): Promise<{ message: string }> {
+    return this.authService.logout(refreshTokenDto);
+  }
+
+  @Post('logout-all')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Revoke all refresh tokens for the current user' })
+  async logoutAll(
+    @CurrentUser() user: { userId: string; email: string },
+  ): Promise<{ message: string }> {
+    return this.authService.logoutAll(user.userId);
   }
 
   @Post('forgot-password')

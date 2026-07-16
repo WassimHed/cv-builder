@@ -27,6 +27,9 @@ class EnvironmentVariables {
   JWT_EXPIRATION_TIME!: string;
 
   @IsString()
+  JWT_REFRESH_EXPIRATION_TIME!: string;
+
+  @IsString()
   MONGODB_URI!: string;
 
   @IsString()

@@ -6,6 +6,7 @@ import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 import { MailService } from '../mail/mail.service';
 import { MailTemplate } from '../mail/dto/send-email-job.dto';
+import { RefreshTokensService } from './refresh-tokens.service';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -33,6 +34,13 @@ describe('AuthService', () => {
   };
   let configService: {
     getOrThrow: jest.Mock;
+  };
+  let refreshTokensService: {
+    issueToken: jest.Mock;
+    rotateToken: jest.Mock;
+    revokeToken: jest.Mock;
+    revokeFamily: jest.Mock;
+    revokeAllForUser: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -65,6 +73,17 @@ describe('AuthService', () => {
       getOrThrow: jest.fn().mockReturnValue('http://localhost:4200'),
     };
 
+    refreshTokensService = {
+      issueToken: jest.fn().mockResolvedValue({
+        rawToken: 'refresh-token-1',
+        record: { id: 'rt-1', familyId: 'family-1' },
+      }),
+      rotateToken: jest.fn(),
+      revokeToken: jest.fn(),
+      revokeFamily: jest.fn(),
+      revokeAllForUser: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
@@ -83,6 +102,10 @@ describe('AuthService', () => {
         {
           provide: ConfigService,
           useValue: configService,
+        },
+        {
+          provide: RefreshTokensService,
+          useValue: refreshTokensService,
         },
       ],
     }).compile();
@@ -160,8 +183,15 @@ describe('AuthService', () => {
       sub: 'user-1',
       email: 'jane@example.com',
     });
+    expect(refreshTokensService.issueToken).toHaveBeenCalledWith(
+      'user-1',
+      undefined,
+      undefined,
+      undefined,
+    );
     expect(result).toEqual({
       accessToken: 'token-1',
+      refreshToken: 'refresh-token-1',
       user: {
         id: 'user-1',
         email: 'jane@example.com',
@@ -187,6 +217,7 @@ describe('AuthService', () => {
     ).rejects.toThrow(UnauthorizedException);
 
     expect(usersService.validatePassword).not.toHaveBeenCalled();
+    expect(refreshTokensService.issueToken).not.toHaveBeenCalled();
   });
 
   it('rejects login for an unverified email without checking the password', async () => {
@@ -204,6 +235,7 @@ describe('AuthService', () => {
     ).rejects.toThrow(UnauthorizedException);
 
     expect(usersService.validatePassword).not.toHaveBeenCalled();
+    expect(refreshTokensService.issueToken).not.toHaveBeenCalled();
   });
 
   it('registers a failed attempt on invalid password', async () => {
@@ -223,6 +255,7 @@ describe('AuthService', () => {
 
     expect(usersService.registerFailedAttempt).toHaveBeenCalled();
     expect(usersService.resetFailedAttempts).not.toHaveBeenCalled();
+    expect(refreshTokensService.issueToken).not.toHaveBeenCalled();
   });
 
   describe('forgotPassword', () => {
@@ -283,9 +316,10 @@ describe('AuthService', () => {
       ).rejects.toThrow(BadRequestException);
 
       expect(usersService.resetPassword).not.toHaveBeenCalled();
+      expect(refreshTokensService.revokeAllForUser).not.toHaveBeenCalled();
     });
 
-    it('resets the password when the token is valid', async () => {
+    it('resets the password when the token is valid and revokes all refresh tokens', async () => {
       const user = { id: 'user-1', email: 'jane@example.com' };
       usersService.findByResetToken.mockResolvedValue(user);
 
@@ -298,6 +332,9 @@ describe('AuthService', () => {
       expect(usersService.resetPassword).toHaveBeenCalledWith(
         user,
         'NewPass123!',
+      );
+      expect(refreshTokensService.revokeAllForUser).toHaveBeenCalledWith(
+        'user-1',
       );
       expect(result).toEqual({
         message: 'Password has been reset successfully.',
@@ -422,9 +459,10 @@ describe('AuthService', () => {
       ).rejects.toThrow(UnauthorizedException);
 
       expect(usersService.changePassword).not.toHaveBeenCalled();
+      expect(refreshTokensService.revokeAllForUser).not.toHaveBeenCalled();
     });
 
-    it('changes the password and sends a notification email', async () => {
+    it('changes the password, revokes all refresh tokens, and sends a notification email', async () => {
       const user = {
         id: 'user-1',
         email: 'jane@example.com',
@@ -442,6 +480,9 @@ describe('AuthService', () => {
       expect(usersService.changePassword).toHaveBeenCalledWith(
         user,
         'NewStrongPassword123!',
+      );
+      expect(refreshTokensService.revokeAllForUser).toHaveBeenCalledWith(
+        'user-1',
       );
       expect(mailService.queueEmail).toHaveBeenCalledWith({
         to: 'jane@example.com',

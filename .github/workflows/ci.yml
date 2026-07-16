@@ -56,7 +56,8 @@ jobs:
       DB_PASSWORD: changeme
       DB_DATABASE: cv_builder
       JWT_SECRET: ci_test_secret
-      JWT_EXPIRATION_TIME: 1d
+      JWT_EXPIRATION_TIME: 15m
+      JWT_REFRESH_EXPIRATION_TIME: 30d
       MONGODB_URI: mongodb://127.0.0.1:27017/cv_builder_test
       MINIO_ENDPOINT: localhost
       MINIO_API_PORT: 9002

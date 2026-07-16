@@ -7,6 +7,9 @@ describe('AuthController', () => {
   let authService: {
     register: jest.Mock;
     login: jest.Mock;
+    refresh: jest.Mock;
+    logout: jest.Mock;
+    logoutAll: jest.Mock;
     forgotPassword: jest.Mock;
     resetPassword: jest.Mock;
     verifyEmail: jest.Mock;
@@ -18,6 +21,9 @@ describe('AuthController', () => {
     authService = {
       register: jest.fn(),
       login: jest.fn(),
+      refresh: jest.fn(),
+      logout: jest.fn(),
+      logoutAll: jest.fn(),
       forgotPassword: jest.fn(),
       resetPassword: jest.fn(),
       verifyEmail: jest.fn(),
@@ -58,16 +64,70 @@ describe('AuthController', () => {
     });
   });
 
-  it('forwards login requests to the service', async () => {
-    await controller.login({
+  it('forwards login requests to the service along with request context', async () => {
+    const fakeReq = {
+      headers: { 'user-agent': 'jest-test-agent' },
+      ip: '127.0.0.1',
+    } as any;
+
+    await controller.login(
+      {
+        email: 'jane@example.com',
+        password: 'secret',
+      },
+      fakeReq,
+    );
+
+    expect(authService.login).toHaveBeenCalledWith(
+      {
+        email: 'jane@example.com',
+        password: 'secret',
+      },
+      { userAgent: 'jest-test-agent', ipAddress: '127.0.0.1' },
+    );
+  });
+
+  it('builds an empty request context when req has no headers/ip (defensive default)', async () => {
+    await controller.login(
+      { email: 'jane@example.com', password: 'secret' },
+      {} as any,
+    );
+
+    expect(authService.login).toHaveBeenCalledWith(
+      { email: 'jane@example.com', password: 'secret' },
+      { userAgent: undefined, ipAddress: undefined },
+    );
+  });
+
+  it('forwards refresh requests to the service along with request context', async () => {
+    const fakeReq = {
+      headers: { 'user-agent': 'jest-test-agent' },
+      ip: '127.0.0.1',
+    } as any;
+
+    await controller.refresh({ refreshToken: 'raw-refresh-token' }, fakeReq);
+
+    expect(authService.refresh).toHaveBeenCalledWith(
+      { refreshToken: 'raw-refresh-token' },
+      { userAgent: 'jest-test-agent', ipAddress: '127.0.0.1' },
+    );
+  });
+
+  it('forwards logout requests to the service', async () => {
+    await controller.logout({ refreshToken: 'raw-refresh-token' });
+
+    expect(authService.logout).toHaveBeenCalledWith({
+      refreshToken: 'raw-refresh-token',
+    });
+  });
+
+  it('forwards logout-all requests to the service using the current user id', async () => {
+    await controller.logoutAll({
+      userId: 'user-1',
       email: 'jane@example.com',
-      password: 'secret',
     });
 
-    expect(authService.login).toHaveBeenCalledWith({
-      email: 'jane@example.com',
-      password: 'secret',
-    });
+    expect(authService.logoutAll).toHaveBeenCalledWith('user-1');
   });
 
   it('forwards forgot-password requests to the service', async () => {
