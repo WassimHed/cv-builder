@@ -20,6 +20,7 @@ import { AuthResponseDto } from './dto/auth-response.dto';
 import { RegisterResponseDto } from './dto/register-response.dto';
 import { RefreshTokensService } from './refresh-tokens.service';
 import { User } from '../users/entities/user.entity';
+import { SessionDto } from './dto/session.dto';
 
 export interface RequestContext {
   userAgent?: string;
@@ -274,5 +275,44 @@ export class AuthService {
         lastName: user.lastName,
       },
     };
+  }
+
+  async listSessions(
+    userId: string,
+    dto: RefreshTokenDto,
+  ): Promise<SessionDto[]> {
+    const currentFamilyId =
+      await this.refreshTokensService.findFamilyIdForToken(dto.refreshToken);
+    const tokens = await this.refreshTokensService.listForUser(userId);
+    const now = Date.now();
+
+    return tokens.map((token) => {
+      const status: SessionDto['status'] = token.revokedAt
+        ? 'revoked'
+        : token.expiresAt.getTime() < now
+          ? 'expired'
+          : 'active';
+
+      return {
+        id: token.id,
+        familyId: token.familyId,
+        status,
+        isCurrent:
+          currentFamilyId !== null && token.familyId === currentFamilyId,
+        userAgent: token.userAgent,
+        ipAddress: token.ipAddress,
+        createdAt: token.createdAt,
+        expiresAt: token.expiresAt,
+        revokedAt: token.revokedAt,
+      };
+    });
+  }
+
+  async revokeSession(
+    userId: string,
+    familyId: string,
+  ): Promise<{ message: string }> {
+    await this.refreshTokensService.revokeFamilyForUser(userId, familyId);
+    return { message: 'Session revoked.' };
   }
 }

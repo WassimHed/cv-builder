@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
@@ -31,11 +35,6 @@ export class RefreshTokensService {
     return new Date(Date.now() + ms(expiration));
   }
 
-  /**
-   * Issues a brand new refresh token. Called at login (new familyId,
-   * starts a new session lineage) and internally by rotateToken
-   * (same familyId, continues an existing lineage).
-   */
   async issueToken(
     userId: string,
     familyId: string = randomUUID(),
@@ -55,13 +54,6 @@ export class RefreshTokensService {
     return { rawToken, record };
   }
 
-  /**
-   * Exchanges a valid, unused refresh token for a new one in the same
-   * family. If the presented token has already been revoked (i.e. it
-   * was already rotated once before, or explicitly logged out), that's
-   * a reuse signal — someone is presenting a stale token, which only
-   * happens if it leaked. We revoke the entire family defensively.
-   */
   async rotateToken(
     rawToken: string,
     userAgent?: string,
@@ -124,5 +116,43 @@ export class RefreshTokensService {
       { userId },
       { revokedAt: new Date() },
     );
+  }
+
+  /**
+   * Resolves the familyId for a given raw refresh token, without
+   * throwing on invalid/expired/unknown tokens. Used by session listing
+   * to identify "isCurrent" — an invalid token here just means no
+   * session gets marked current, not an auth failure (the caller is
+   * already authenticated via JWT for that endpoint).
+   */
+  async findFamilyIdForToken(rawToken: string): Promise<string | null> {
+    const tokenHash = this.hashToken(rawToken);
+    const existing = await this.refreshTokensRepository.findOne({
+      where: { tokenHash },
+    });
+    return existing?.familyId ?? null;
+  }
+
+  async listForUser(userId: string): Promise<RefreshToken[]> {
+    return this.refreshTokensRepository.find({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  /**
+   * Revokes an entire session family, but only after confirming it
+   * actually belongs to the requesting user — prevents one user from
+   * revoking another user's session by guessing/passing an arbitrary
+   * familyId.
+   */
+  async revokeFamilyForUser(userId: string, familyId: string): Promise<void> {
+    const belongsToUser = await this.refreshTokensRepository.findOne({
+      where: { userId, familyId },
+    });
+    if (!belongsToUser) {
+      throw new NotFoundException('Session not found');
+    }
+    await this.revokeFamily(familyId);
   }
 }

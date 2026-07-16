@@ -12,6 +12,7 @@ describe('RefreshTokensService', () => {
     save: jest.Mock;
     findOne: jest.Mock;
     update: jest.Mock;
+    find: jest.Mock;
   };
   let configService: { getOrThrow: jest.Mock };
 
@@ -21,6 +22,7 @@ describe('RefreshTokensService', () => {
       save: jest.fn(async (entity) => ({ id: 'generated-id', ...entity })),
       findOne: jest.fn(),
       update: jest.fn(),
+      find: jest.fn(),
     };
 
     configService = {
@@ -238,6 +240,62 @@ describe('RefreshTokensService', () => {
 
       expect(repository.update).toHaveBeenCalledWith(
         { userId: 'user-1' },
+        { revokedAt: expect.any(Date) },
+      );
+    });
+  });
+  describe('findFamilyIdForToken', () => {
+    it('returns null when the token does not exist', async () => {
+      repository.findOne.mockResolvedValue(null);
+
+      const result = await service.findFamilyIdForToken('unknown-token');
+
+      expect(result).toBeNull();
+    });
+
+    it('returns the familyId when the token exists', async () => {
+      repository.findOne.mockResolvedValue({ familyId: 'family-1' });
+
+      const result = await service.findFamilyIdForToken('known-token');
+
+      expect(result).toBe('family-1');
+    });
+  });
+
+  describe('listForUser', () => {
+    it('queries by userId ordered by createdAt descending', async () => {
+      repository.find = jest.fn().mockResolvedValue([]);
+
+      await service.listForUser('user-1');
+
+      expect(repository.find).toHaveBeenCalledWith({
+        where: { userId: 'user-1' },
+        order: { createdAt: 'DESC' },
+      });
+    });
+  });
+
+  describe('revokeFamilyForUser', () => {
+    it('throws NotFoundException when the family does not belong to the user', async () => {
+      repository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.revokeFamilyForUser('user-1', 'someone-elses-family'),
+      ).rejects.toThrow('Session not found');
+
+      expect(repository.update).not.toHaveBeenCalled();
+    });
+
+    it('revokes the family when it belongs to the user', async () => {
+      repository.findOne.mockResolvedValue({
+        userId: 'user-1',
+        familyId: 'family-1',
+      });
+
+      await service.revokeFamilyForUser('user-1', 'family-1');
+
+      expect(repository.update).toHaveBeenCalledWith(
+        { familyId: 'family-1' },
         { revokedAt: expect.any(Date) },
       );
     });

@@ -41,6 +41,9 @@ describe('AuthService', () => {
     revokeToken: jest.Mock;
     revokeFamily: jest.Mock;
     revokeAllForUser: jest.Mock;
+    findFamilyIdForToken: jest.Mock;
+    listForUser: jest.Mock;
+    revokeFamilyForUser: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -82,6 +85,9 @@ describe('AuthService', () => {
       revokeToken: jest.fn(),
       revokeFamily: jest.fn(),
       revokeAllForUser: jest.fn(),
+      findFamilyIdForToken: jest.fn(),
+      listForUser: jest.fn(),
+      revokeFamilyForUser: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -491,6 +497,96 @@ describe('AuthService', () => {
         context: { firstName: 'Jane' },
       });
       expect(result).toEqual({ message: 'Password changed successfully.' });
+    });
+  });
+
+  describe('listSessions', () => {
+    it('marks matching-family sessions as current and computes status correctly', async () => {
+      refreshTokensService.findFamilyIdForToken.mockResolvedValue('family-1');
+      refreshTokensService.listForUser.mockResolvedValue([
+        {
+          id: 'rt-1',
+          familyId: 'family-1',
+          userAgent: 'Chrome',
+          ipAddress: '127.0.0.1',
+          createdAt: new Date('2026-01-01'),
+          expiresAt: new Date(Date.now() + 100000),
+          revokedAt: null,
+        },
+        {
+          id: 'rt-2',
+          familyId: 'family-2',
+          userAgent: 'Firefox',
+          ipAddress: '10.0.0.1',
+          createdAt: new Date('2026-01-02'),
+          expiresAt: new Date(Date.now() - 100000),
+          revokedAt: null,
+        },
+        {
+          id: 'rt-3',
+          familyId: 'family-3',
+          userAgent: 'Safari',
+          ipAddress: '10.0.0.2',
+          createdAt: new Date('2026-01-03'),
+          expiresAt: new Date(Date.now() + 100000),
+          revokedAt: new Date(),
+        },
+      ]);
+
+      const result = await service.listSessions('user-1', {
+        refreshToken: 'current-raw-token',
+      });
+
+      expect(result).toEqual([
+        expect.objectContaining({
+          id: 'rt-1',
+          status: 'active',
+          isCurrent: true,
+        }),
+        expect.objectContaining({
+          id: 'rt-2',
+          status: 'expired',
+          isCurrent: false,
+        }),
+        expect.objectContaining({
+          id: 'rt-3',
+          status: 'revoked',
+          isCurrent: false,
+        }),
+      ]);
+    });
+
+    it('marks nothing as current when the submitted token is invalid', async () => {
+      refreshTokensService.findFamilyIdForToken.mockResolvedValue(null);
+      refreshTokensService.listForUser.mockResolvedValue([
+        {
+          id: 'rt-1',
+          familyId: 'family-1',
+          userAgent: null,
+          ipAddress: null,
+          createdAt: new Date(),
+          expiresAt: new Date(Date.now() + 100000),
+          revokedAt: null,
+        },
+      ]);
+
+      const result = await service.listSessions('user-1', {
+        refreshToken: 'stale-or-invalid-token',
+      });
+
+      expect(result[0].isCurrent).toBe(false);
+    });
+  });
+
+  describe('revokeSession', () => {
+    it('delegates to refreshTokensService.revokeFamilyForUser', async () => {
+      const result = await service.revokeSession('user-1', 'family-1');
+
+      expect(refreshTokensService.revokeFamilyForUser).toHaveBeenCalledWith(
+        'user-1',
+        'family-1',
+      );
+      expect(result).toEqual({ message: 'Session revoked.' });
     });
   });
 });

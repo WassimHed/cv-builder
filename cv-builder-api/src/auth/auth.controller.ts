@@ -3,6 +3,8 @@ import {
   Controller,
   Post,
   Get,
+  Delete,
+  Param,
   Req,
   UseGuards,
   HttpCode,
@@ -29,6 +31,7 @@ import { AuthResponseDto } from './dto/auth-response.dto';
 import { RegisterResponseDto } from './dto/register-response.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
+import { SessionDto } from './dto/session.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -157,5 +160,32 @@ export class AuthController {
   @ApiOperation({ summary: 'Get current authenticated user (test route)' })
   me(@CurrentUser() user: { userId: string; email: string }) {
     return user;
+  }
+
+  @Post('sessions')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'List sessions (active, revoked, expired) for the current user',
+  })
+  @ApiResponse({ status: 200, type: [SessionDto] })
+  async listSessions(
+    @CurrentUser() user: { userId: string; email: string },
+    @Body() refreshTokenDto: RefreshTokenDto,
+  ): Promise<SessionDto[]> {
+    return this.authService.listSessions(user.userId, refreshTokenDto);
+  }
+
+  @Delete('sessions/:familyId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Revoke a specific session' })
+  async revokeSession(
+    @CurrentUser() user: { userId: string; email: string },
+    @Param('familyId') familyId: string,
+  ): Promise<{ message: string }> {
+    return this.authService.revokeSession(user.userId, familyId);
   }
 }

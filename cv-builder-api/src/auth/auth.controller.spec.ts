@@ -10,6 +10,8 @@ describe('AuthController', () => {
     refresh: jest.Mock;
     logout: jest.Mock;
     logoutAll: jest.Mock;
+    listSessions: jest.Mock;
+    revokeSession: jest.Mock;
     forgotPassword: jest.Mock;
     resetPassword: jest.Mock;
     verifyEmail: jest.Mock;
@@ -24,6 +26,8 @@ describe('AuthController', () => {
       refresh: jest.fn(),
       logout: jest.fn(),
       logoutAll: jest.fn(),
+      listSessions: jest.fn(),
+      revokeSession: jest.fn(),
       forgotPassword: jest.fn(),
       resetPassword: jest.fn(),
       verifyEmail: jest.fn(),
@@ -128,6 +132,29 @@ describe('AuthController', () => {
     });
 
     expect(authService.logoutAll).toHaveBeenCalledWith('user-1');
+  });
+
+  it('forwards list-sessions requests to the service with the current user id', async () => {
+    await controller.listSessions(
+      { userId: 'user-1', email: 'jane@example.com' },
+      { refreshToken: 'raw-refresh-token' },
+    );
+
+    expect(authService.listSessions).toHaveBeenCalledWith('user-1', {
+      refreshToken: 'raw-refresh-token',
+    });
+  });
+
+  it('forwards revoke-session requests with the current user id and familyId param', async () => {
+    await controller.revokeSession(
+      { userId: 'user-1', email: 'jane@example.com' },
+      'family-1',
+    );
+
+    expect(authService.revokeSession).toHaveBeenCalledWith(
+      'user-1',
+      'family-1',
+    );
   });
 
   it('forwards forgot-password requests to the service', async () => {
