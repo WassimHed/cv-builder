@@ -9,6 +9,7 @@ import {
   Index,
 } from 'typeorm';
 import { User } from './user.entity';
+import { StorageBackend } from '../../storage/interfaces/storage-backend.enum';
 
 @Entity('profiles')
 export class Profile {
@@ -52,6 +53,12 @@ export class Profile {
 
   @Column({ type: 'varchar', nullable: true, default: null })
   portfolioUrl!: string | null;
+
+  @Column({ type: 'varchar', nullable: true, default: null })
+  avatarKey!: string | null;
+
+  @Column({ type: 'varchar', nullable: true, default: null })
+  avatarBackend!: StorageBackend | null;
 
   @CreateDateColumn()
   createdAt!: Date;

@@ -30,4 +30,7 @@ export class ProfileResponseDto {
 
   @ApiProperty()
   portfolioUrl!: string | null;
+
+  @ApiProperty()
+  hasAvatar!: boolean;
 }
