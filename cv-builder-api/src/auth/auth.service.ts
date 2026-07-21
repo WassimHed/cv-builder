@@ -37,6 +37,28 @@ export class AuthService {
     private readonly refreshTokensService: RefreshTokensService,
   ) {}
 
+  async getCurrentUser(userId: string): Promise<{
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    isEmailVerified: boolean;
+    createdAt: Date;
+  }> {
+    const user = await this.usersService.findById(userId);
+    if (!user) {
+      throw new UnauthorizedException();
+    }
+    return {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      isEmailVerified: user.isEmailVerified,
+      createdAt: user.createdAt,
+    };
+  }
+
   async register(registerDto: RegisterDto): Promise<RegisterResponseDto> {
     const user = await this.usersService.create(registerDto);
 

@@ -51,6 +51,20 @@ describe('AuthController', () => {
   it('should be defined', () => {
     expect(controller).toBeDefined();
   });
+  it('forwards me requests to the service with the current user id', async () => {
+    authService.getCurrentUser = jest.fn().mockResolvedValue({
+      id: 'user-1',
+      email: 'jane@example.com',
+      firstName: 'Jane',
+      lastName: 'Doe',
+      isEmailVerified: true,
+      createdAt: new Date(),
+    });
+
+    await controller.me({ userId: 'user-1', email: 'jane@example.com' });
+
+    expect(authService.getCurrentUser).toHaveBeenCalledWith('user-1');
+  });
 
   it('forwards register requests to the service', async () => {
     await controller.register({

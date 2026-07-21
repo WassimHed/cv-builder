@@ -157,9 +157,9 @@ export class AuthController {
   @Get('me')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get current authenticated user (test route)' })
-  me(@CurrentUser() user: { userId: string; email: string }) {
-    return user;
+  @ApiOperation({ summary: 'Get the current authenticated user' })
+  async me(@CurrentUser() user: { userId: string; email: string }) {
+    return this.authService.getCurrentUser(user.userId);
   }
 
   @Post('sessions')

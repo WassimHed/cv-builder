@@ -122,6 +122,39 @@ describe('AuthService', () => {
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
+  describe('getCurrentUser', () => {
+    it('throws when the user cannot be found', async () => {
+      usersService.findById.mockResolvedValue(null);
+
+      await expect(service.getCurrentUser('user-1')).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('returns the real DB user, excluding sensitive fields', async () => {
+      usersService.findById.mockResolvedValue({
+        id: 'user-1',
+        email: 'jane@example.com',
+        password: 'hashed-password',
+        firstName: 'Jane',
+        lastName: 'Doe',
+        isEmailVerified: true,
+        createdAt: new Date('2026-01-01'),
+      });
+
+      const result = await service.getCurrentUser('user-1');
+
+      expect(result).toEqual({
+        id: 'user-1',
+        email: 'jane@example.com',
+        firstName: 'Jane',
+        lastName: 'Doe',
+        isEmailVerified: true,
+        createdAt: new Date('2026-01-01'),
+      });
+      expect(result).not.toHaveProperty('password');
+    });
+  });
 
   describe('register', () => {
     it('creates the user, sends a verification email, and returns a generic message', async () => {
