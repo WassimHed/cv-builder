@@ -148,4 +148,8 @@ export class UsersService {
     user.passwordChangedAt = new Date();
     await this.usersRepository.save(user);
   }
+
+  async delete(userId: string): Promise<void> {
+    await this.usersRepository.delete(userId);
+  }
 }

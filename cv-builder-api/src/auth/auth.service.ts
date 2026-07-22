@@ -21,6 +21,10 @@ import { RegisterResponseDto } from './dto/register-response.dto';
 import { RefreshTokensService } from './refresh-tokens.service';
 import { User } from '../users/entities/user.entity';
 import { SessionDto } from './dto/session.dto';
+import { CvService } from '../cv/cv.service';
+import { LettersService } from '../letters/letters.service';
+import { AvatarsService } from '../users/avatars.service';
+import { DeleteAccountDto } from './dto/delete-account.dto';
 
 export interface RequestContext {
   userAgent?: string;
@@ -35,6 +39,9 @@ export class AuthService {
     private readonly mailService: MailService,
     private readonly configService: ConfigService,
     private readonly refreshTokensService: RefreshTokensService,
+    private readonly cvService: CvService,
+    private readonly lettersService: LettersService,
+    private readonly avatarsService: AvatarsService,
   ) {}
 
   async getCurrentUser(userId: string): Promise<{
@@ -272,6 +279,40 @@ export class AuthService {
     });
 
     return { message: 'Password changed successfully.' };
+  }
+
+  /**
+   * Permanently deletes the user's account and all associated data.
+   * Requires re-entering the current password as a deliberate friction
+   * point for an irreversible, destructive action — a valid access
+   * token alone isn't treated as sufficient authorization here.
+   */
+  async deleteAccount(
+    userId: string,
+    dto: DeleteAccountDto,
+  ): Promise<{ message: string }> {
+    const user = await this.usersService.findById(userId);
+    if (!user) {
+      throw new UnauthorizedException();
+    }
+
+    const isPasswordValid = await this.usersService.validatePassword(
+      dto.password,
+      user.password,
+    );
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Incorrect password');
+    }
+
+    // Order matters: clean up dependent data first, delete the User
+    // row last. Profile is cascade-deleted automatically via its FK.
+    await this.avatarsService.deleteAvatarIfExists(userId);
+    await this.cvService.removeAllByUser(userId);
+    await this.lettersService.removeAllByUser(userId);
+    await this.refreshTokensService.deleteAllForUser(userId);
+    await this.usersService.delete(userId);
+
+    return { message: 'Account deleted.' };
   }
 
   private async buildAuthResponse(

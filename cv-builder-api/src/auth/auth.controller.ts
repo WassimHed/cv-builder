@@ -32,6 +32,7 @@ import { RegisterResponseDto } from './dto/register-response.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { SessionDto } from './dto/session.dto';
+import { DeleteAccountDto } from './dto/delete-account.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -152,6 +153,20 @@ export class AuthController {
     @Body() changePasswordDto: ChangePasswordDto,
   ): Promise<{ message: string }> {
     return this.authService.changePassword(user.userId, changePasswordDto);
+  }
+
+  @Delete('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: "Permanently delete the authenticated user's account and all data",
+  })
+  async deleteAccount(
+    @CurrentUser() user: { userId: string; email: string },
+    @Body() deleteAccountDto: DeleteAccountDto,
+  ): Promise<{ message: string }> {
+    return this.authService.deleteAccount(user.userId, deleteAccountDto);
   }
 
   @Get('me')

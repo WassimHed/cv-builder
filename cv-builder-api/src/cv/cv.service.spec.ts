@@ -12,6 +12,7 @@ describe('CvService', () => {
     findOne: jest.Mock;
     findOneAndUpdate: jest.Mock;
     deleteOne: jest.Mock;
+    deleteMany: jest.Mock;
   };
   let usersService: {
     findById: jest.Mock;
@@ -19,6 +20,7 @@ describe('CvService', () => {
   let storageService: {
     upload: jest.Mock;
     download: jest.Mock;
+    delete: jest.Mock;
   };
 
   const makeCvDocument = (plain: Record<string, unknown>) => {
@@ -66,12 +68,14 @@ describe('CvService', () => {
       findOne: jest.Mock;
       findOneAndUpdate: jest.Mock;
       deleteOne: jest.Mock;
+      deleteMany: jest.Mock;
     };
 
     cvModel.find = jest.fn();
     cvModel.findOne = jest.fn();
     cvModel.findOneAndUpdate = jest.fn();
     cvModel.deleteOne = jest.fn();
+    cvModel.deleteMany = jest.fn();
 
     usersService = {
       findById: jest.fn(),
@@ -80,6 +84,7 @@ describe('CvService', () => {
     storageService = {
       upload: jest.fn(),
       download: jest.fn(),
+      delete: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -206,5 +211,47 @@ describe('CvService', () => {
     const serialized = JSON.stringify(fetched);
     expect(serialized).toContain(`"_id":"${expectedHexId}"`);
     expect(serialized).not.toContain('"buffer"');
+  });
+
+  describe('removeAllByUser', () => {
+    it('deletes storage files for CVs that have a PDF, then deletes all CV documents', async () => {
+      const mockCvs = [
+        { pdfKey: 'cv-pdfs/cv-1.pdf', pdfBackend: 'minio' },
+        { pdfKey: null, pdfBackend: null },
+        { pdfKey: 'cv-pdfs/cv-3.pdf', pdfBackend: 'local' },
+      ];
+      cvModel.find.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockCvs),
+      });
+      cvModel.deleteMany.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ deletedCount: 3 }),
+      });
+
+      await service.removeAllByUser('user-1');
+
+      expect(storageService.delete).toHaveBeenCalledTimes(2);
+      expect(storageService.delete).toHaveBeenCalledWith(
+        'cv-pdfs/cv-1.pdf',
+        'minio',
+      );
+      expect(storageService.delete).toHaveBeenCalledWith(
+        'cv-pdfs/cv-3.pdf',
+        'local',
+      );
+      expect(cvModel.deleteMany).toHaveBeenCalledWith({ userId: 'user-1' });
+    });
+
+    it('does not call storage.delete when no CVs have PDFs', async () => {
+      cvModel.find.mockReturnValue({
+        exec: jest.fn().mockResolvedValue([{ pdfKey: null, pdfBackend: null }]),
+      });
+      cvModel.deleteMany.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ deletedCount: 1 }),
+      });
+
+      await service.removeAllByUser('user-1');
+
+      expect(storageService.delete).not.toHaveBeenCalled();
+    });
   });
 });

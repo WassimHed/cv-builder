@@ -94,7 +94,7 @@ describe('UsersController', () => {
       await expect(
         controller.uploadAvatar(
           { userId: 'user-1', email: 'jane@example.com' },
-          { ...fakeFile, size: 4 * 1024 * 1024 },
+          { ...fakeFile, size: 11 * 1024 * 1024 },
         ),
       ).rejects.toThrow(BadRequestException);
       expect(avatarsService.uploadAvatar).not.toHaveBeenCalled();

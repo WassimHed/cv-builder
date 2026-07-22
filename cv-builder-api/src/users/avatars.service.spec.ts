@@ -173,4 +173,29 @@ describe('AvatarsService', () => {
       expect(profilesService.clearAvatar).toHaveBeenCalledWith('user-1');
     });
   });
+  describe('deleteAvatarIfExists', () => {
+    it('does nothing when no avatar is set', async () => {
+      profilesService.getAvatarLocation.mockResolvedValue(null);
+
+      await service.deleteAvatarIfExists('user-1');
+
+      expect(storageService.delete).not.toHaveBeenCalled();
+      expect(profilesService.clearAvatar).not.toHaveBeenCalled();
+    });
+
+    it('deletes the file and clears the profile when an avatar is set', async () => {
+      profilesService.getAvatarLocation.mockResolvedValue({
+        key: 'avatars/user-1.webp',
+        backend: StorageBackend.MINIO,
+      });
+
+      await service.deleteAvatarIfExists('user-1');
+
+      expect(storageService.delete).toHaveBeenCalledWith(
+        'avatars/user-1.webp',
+        StorageBackend.MINIO,
+      );
+      expect(profilesService.clearAvatar).toHaveBeenCalledWith('user-1');
+    });
+  });
 });

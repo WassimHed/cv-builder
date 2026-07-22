@@ -7,6 +7,9 @@ import { UsersService } from '../users/users.service';
 import { MailService } from '../mail/mail.service';
 import { MailTemplate } from '../mail/dto/send-email-job.dto';
 import { RefreshTokensService } from './refresh-tokens.service';
+import { CvService } from '../cv/cv.service';
+import { LettersService } from '../letters/letters.service';
+import { AvatarsService } from '../users/avatars.service';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -25,6 +28,7 @@ describe('AuthService', () => {
     findByEmailVerificationToken: jest.Mock;
     markEmailAsVerified: jest.Mock;
     changePassword: jest.Mock;
+    delete: jest.Mock;
   };
   let jwtService: {
     sign: jest.Mock;
@@ -44,6 +48,16 @@ describe('AuthService', () => {
     findFamilyIdForToken: jest.Mock;
     listForUser: jest.Mock;
     revokeFamilyForUser: jest.Mock;
+    deleteAllForUser: jest.Mock;
+  };
+  let cvService: {
+    removeAllByUser: jest.Mock;
+  };
+  let lettersService: {
+    removeAllByUser: jest.Mock;
+  };
+  let avatarsService: {
+    deleteAvatarIfExists: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -62,6 +76,7 @@ describe('AuthService', () => {
       findByEmailVerificationToken: jest.fn(),
       markEmailAsVerified: jest.fn(),
       changePassword: jest.fn(),
+      delete: jest.fn(),
     };
 
     jwtService = {
@@ -88,6 +103,19 @@ describe('AuthService', () => {
       findFamilyIdForToken: jest.fn(),
       listForUser: jest.fn(),
       revokeFamilyForUser: jest.fn(),
+      deleteAllForUser: jest.fn(),
+    };
+
+    cvService = {
+      removeAllByUser: jest.fn(),
+    };
+
+    lettersService = {
+      removeAllByUser: jest.fn(),
+    };
+
+    avatarsService = {
+      deleteAvatarIfExists: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -113,6 +141,18 @@ describe('AuthService', () => {
           provide: RefreshTokensService,
           useValue: refreshTokensService,
         },
+        {
+          provide: CvService,
+          useValue: cvService,
+        },
+        {
+          provide: LettersService,
+          useValue: lettersService,
+        },
+        {
+          provide: AvatarsService,
+          useValue: avatarsService,
+        },
       ],
     }).compile();
 
@@ -122,6 +162,7 @@ describe('AuthService', () => {
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
+
   describe('getCurrentUser', () => {
     it('throws when the user cannot be found', async () => {
       usersService.findById.mockResolvedValue(null);
@@ -620,6 +661,53 @@ describe('AuthService', () => {
         'family-1',
       );
       expect(result).toEqual({ message: 'Session revoked.' });
+    });
+  });
+
+  describe('deleteAccount', () => {
+    it('throws when the user cannot be found', async () => {
+      usersService.findById.mockResolvedValue(null);
+
+      await expect(
+        service.deleteAccount('user-1', { password: 'whatever' }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('throws when the password is incorrect', async () => {
+      usersService.findById.mockResolvedValue({
+        id: 'user-1',
+        password: 'hashed-password',
+      });
+      usersService.validatePassword.mockResolvedValue(false);
+
+      await expect(
+        service.deleteAccount('user-1', { password: 'wrong' }),
+      ).rejects.toThrow(UnauthorizedException);
+
+      expect(cvService.removeAllByUser).not.toHaveBeenCalled();
+    });
+
+    it('cascades deletion across avatar, CVs, letters, refresh tokens, and the user row', async () => {
+      usersService.findById.mockResolvedValue({
+        id: 'user-1',
+        password: 'hashed-password',
+      });
+      usersService.validatePassword.mockResolvedValue(true);
+
+      const result = await service.deleteAccount('user-1', {
+        password: 'correct-password',
+      });
+
+      expect(avatarsService.deleteAvatarIfExists).toHaveBeenCalledWith(
+        'user-1',
+      );
+      expect(cvService.removeAllByUser).toHaveBeenCalledWith('user-1');
+      expect(lettersService.removeAllByUser).toHaveBeenCalledWith('user-1');
+      expect(refreshTokensService.deleteAllForUser).toHaveBeenCalledWith(
+        'user-1',
+      );
+      expect(usersService.delete).toHaveBeenCalledWith('user-1');
+      expect(result).toEqual({ message: 'Account deleted.' });
     });
   });
 });

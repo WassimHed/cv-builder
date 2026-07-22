@@ -129,4 +129,21 @@ export class LettersService {
     letter.pdfStatus = status;
     await letter.save();
   }
+
+  /**
+   * Deletes every motivation letter owned by a user, including each
+   * one's generated PDF file in storage — same reasoning as
+   * CvService.removeAllByUser.
+   */
+  async removeAllByUser(userId: string): Promise<void> {
+    const letters = await this.letterModel.find({ userId }).exec();
+
+    for (const letter of letters) {
+      if (letter.pdfKey && letter.pdfBackend) {
+        await this.storageService.delete(letter.pdfKey, letter.pdfBackend);
+      }
+    }
+
+    await this.letterModel.deleteMany({ userId }).exec();
+  }
 }

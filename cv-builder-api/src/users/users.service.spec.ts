@@ -9,6 +9,7 @@ describe('UsersService', () => {
     create: jest.Mock;
     save: jest.Mock;
     findOne: jest.Mock;
+    delete: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -16,6 +17,7 @@ describe('UsersService', () => {
       create: jest.fn((user) => user),
       save: jest.fn(),
       findOne: jest.fn(),
+      delete: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -205,6 +207,7 @@ describe('UsersService', () => {
       expect(usersRepository.save).toHaveBeenCalledWith(user);
     });
   });
+
   describe('changePassword', () => {
     it('hashes the new password and sets passwordChangedAt', async () => {
       const user = {
@@ -222,6 +225,14 @@ describe('UsersService', () => {
       expect(user.password).not.toBe('old-hashed');
       expect(user.passwordChangedAt).toBeInstanceOf(Date);
       expect(usersRepository.save).toHaveBeenCalledWith(user);
+    });
+  });
+
+  describe('delete', () => {
+    it('deletes the user by id', async () => {
+      await service.delete('user-1');
+
+      expect(usersRepository.delete).toHaveBeenCalledWith('user-1');
     });
   });
 });

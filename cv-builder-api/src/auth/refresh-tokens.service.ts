@@ -155,4 +155,14 @@ export class RefreshTokensService {
     }
     await this.revokeFamily(familyId);
   }
+
+  /**
+   * Permanently deletes all refresh token rows for a user — distinct
+   * from revokeAllForUser, which only sets revokedAt. Used exclusively
+   * by account deletion, since a deleted User row would otherwise leave
+   * orphaned refresh_tokens rows referencing a nonexistent userId.
+   */
+  async deleteAllForUser(userId: string): Promise<void> {
+    await this.refreshTokensRepository.delete({ userId });
+  }
 }

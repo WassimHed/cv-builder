@@ -17,6 +17,8 @@ describe('AuthController', () => {
     verifyEmail: jest.Mock;
     resendVerification: jest.Mock;
     changePassword: jest.Mock;
+    getCurrentUser: jest.Mock;
+    deleteAccount: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -33,6 +35,8 @@ describe('AuthController', () => {
       verifyEmail: jest.fn(),
       resendVerification: jest.fn(),
       changePassword: jest.fn(),
+      getCurrentUser: jest.fn(),
+      deleteAccount: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -51,8 +55,9 @@ describe('AuthController', () => {
   it('should be defined', () => {
     expect(controller).toBeDefined();
   });
+
   it('forwards me requests to the service with the current user id', async () => {
-    authService.getCurrentUser = jest.fn().mockResolvedValue({
+    authService.getCurrentUser.mockResolvedValue({
       id: 'user-1',
       email: 'jane@example.com',
       firstName: 'Jane',
@@ -216,6 +221,17 @@ describe('AuthController', () => {
     expect(authService.changePassword).toHaveBeenCalledWith('user-1', {
       currentPassword: 'old-password',
       newPassword: 'NewPass123!',
+    });
+  });
+
+  it('forwards delete-account requests to the service with the current user id', async () => {
+    await controller.deleteAccount(
+      { userId: 'user-1', email: 'jane@example.com' },
+      { password: 'my-password' },
+    );
+
+    expect(authService.deleteAccount).toHaveBeenCalledWith('user-1', {
+      password: 'my-password',
     });
   });
 });

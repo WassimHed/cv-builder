@@ -209,4 +209,22 @@ export class CvService {
     cv.pdfStatus = status;
     await cv.save();
   }
+
+  /**
+   * Deletes every CV owned by a user, including each one's generated
+   * PDF file in storage (if any) — the existing single-record remove()
+   * doesn't clean up storage, so this is handled explicitly here for
+   * the bulk/account-deletion path.
+   */
+  async removeAllByUser(userId: string): Promise<void> {
+    const cvs = await this.cvModel.find({ userId }).exec();
+
+    for (const cv of cvs) {
+      if (cv.pdfKey && cv.pdfBackend) {
+        await this.storageService.delete(cv.pdfKey, cv.pdfBackend);
+      }
+    }
+
+    await this.cvModel.deleteMany({ userId }).exec();
+  }
 }

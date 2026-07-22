@@ -12,6 +12,6 @@ import { StorageModule } from '../storage/storage.module';
   imports: [TypeOrmModule.forFeature([User, Profile]), StorageModule],
   controllers: [UsersController],
   providers: [UsersService, ProfilesService, AvatarsService],
-  exports: [UsersService],
+  exports: [UsersService, ProfilesService, AvatarsService],
 })
 export class UsersModule {}

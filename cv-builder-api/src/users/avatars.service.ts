@@ -82,4 +82,18 @@ export class AvatarsService {
     await this.storageService.delete(location.key, location.backend);
     await this.profilesService.clearAvatar(userId);
   }
+
+  /**
+   * Same as deleteAvatar, but doesn't throw if no avatar is set — used
+   * by account deletion, where "no avatar to delete" is a normal case,
+   * not an error.
+   */
+  async deleteAvatarIfExists(userId: string): Promise<void> {
+    const location = await this.profilesService.getAvatarLocation(userId);
+    if (!location) {
+      return;
+    }
+    await this.storageService.delete(location.key, location.backend);
+    await this.profilesService.clearAvatar(userId);
+  }
 }

@@ -13,6 +13,7 @@ describe('RefreshTokensService', () => {
     findOne: jest.Mock;
     update: jest.Mock;
     find: jest.Mock;
+    delete: jest.Mock;
   };
   let configService: { getOrThrow: jest.Mock };
 
@@ -23,6 +24,7 @@ describe('RefreshTokensService', () => {
       findOne: jest.fn(),
       update: jest.fn(),
       find: jest.fn(),
+      delete: jest.fn(),
     };
 
     configService = {
@@ -147,11 +149,9 @@ describe('RefreshTokensService', () => {
 
       const result = await service.rotateToken('some-raw-token');
 
-      // old token marked revoked
       expect(repository.save).toHaveBeenCalledWith(
         expect.objectContaining({ id: 'token-1', revokedAt: expect.any(Date) }),
       );
-      // new token issued in the same family
       expect(repository.create).toHaveBeenCalledWith(
         expect.objectContaining({ familyId: 'family-1', userId: 'user-1' }),
       );
@@ -174,7 +174,7 @@ describe('RefreshTokensService', () => {
 
     it('detects reuse of an already-revoked token and revokes the whole family', async () => {
       const reused = validRecord();
-      reused.revokedAt = new Date(); // already used once before
+      reused.revokedAt = new Date();
 
       repository.findOne.mockResolvedValue(reused);
 
@@ -186,7 +186,6 @@ describe('RefreshTokensService', () => {
         { familyId: 'family-1' },
         { revokedAt: expect.any(Date) },
       );
-      // must NOT issue a new token on the reuse path
       expect(repository.create).not.toHaveBeenCalled();
     });
   });
@@ -244,6 +243,7 @@ describe('RefreshTokensService', () => {
       );
     });
   });
+
   describe('findFamilyIdForToken', () => {
     it('returns null when the token does not exist', async () => {
       repository.findOne.mockResolvedValue(null);
@@ -264,7 +264,7 @@ describe('RefreshTokensService', () => {
 
   describe('listForUser', () => {
     it('queries by userId ordered by createdAt descending', async () => {
-      repository.find = jest.fn().mockResolvedValue([]);
+      repository.find.mockResolvedValue([]);
 
       await service.listForUser('user-1');
 
@@ -298,6 +298,14 @@ describe('RefreshTokensService', () => {
         { familyId: 'family-1' },
         { revokedAt: expect.any(Date) },
       );
+    });
+  });
+
+  describe('deleteAllForUser', () => {
+    it('deletes all refresh token rows for the user', async () => {
+      await service.deleteAllForUser('user-1');
+
+      expect(repository.delete).toHaveBeenCalledWith({ userId: 'user-1' });
     });
   });
 });

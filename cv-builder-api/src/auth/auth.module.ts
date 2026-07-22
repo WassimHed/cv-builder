@@ -11,6 +11,8 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { MailModule } from '../mail/mail.module';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { RefreshTokensService } from './refresh-tokens.service';
+import { CvModule } from '../cv/cv.module';
+import { LettersModule } from '../letters/letters.module';
 
 @Module({
   imports: [
@@ -18,6 +20,8 @@ import { RefreshTokensService } from './refresh-tokens.service';
     PassportModule,
     MailModule,
     TypeOrmModule.forFeature([RefreshToken]),
+    CvModule,
+    LettersModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

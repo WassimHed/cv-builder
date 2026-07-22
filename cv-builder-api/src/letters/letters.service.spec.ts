@@ -14,6 +14,7 @@ describe('LettersService', () => {
     findOne: jest.Mock;
     findOneAndUpdate: jest.Mock;
     deleteOne: jest.Mock;
+    deleteMany: jest.Mock;
   };
   let usersService: {
     findById: jest.Mock;
@@ -24,6 +25,7 @@ describe('LettersService', () => {
   let storageService: {
     upload: jest.Mock;
     download: jest.Mock;
+    delete: jest.Mock;
   };
 
   const makeLetterDocument = (plain: Record<string, unknown>) => {
@@ -61,12 +63,14 @@ describe('LettersService', () => {
       findOne: jest.Mock;
       findOneAndUpdate: jest.Mock;
       deleteOne: jest.Mock;
+      deleteMany: jest.Mock;
     };
 
     letterModel.find = jest.fn();
     letterModel.findOne = jest.fn();
     letterModel.findOneAndUpdate = jest.fn();
     letterModel.deleteOne = jest.fn();
+    letterModel.deleteMany = jest.fn();
 
     usersService = {
       findById: jest.fn(),
@@ -79,6 +83,7 @@ describe('LettersService', () => {
     storageService = {
       upload: jest.fn(),
       download: jest.fn(),
+      delete: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -222,6 +227,30 @@ describe('LettersService', () => {
     expect(result).toEqual({
       buffer: Buffer.from('pdf-bytes'),
       filename: 'Letter - Acme.pdf',
+    });
+  });
+
+  describe('removeAllByUser', () => {
+    it('deletes storage files for letters that have a PDF, then deletes all letter documents', async () => {
+      const mockLetters = [
+        { pdfKey: 'letter-pdfs/l-1.pdf', pdfBackend: 'minio' },
+        { pdfKey: null, pdfBackend: null },
+      ];
+      letterModel.find.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockLetters),
+      });
+      letterModel.deleteMany.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ deletedCount: 2 }),
+      });
+
+      await service.removeAllByUser('user-1');
+
+      expect(storageService.delete).toHaveBeenCalledTimes(1);
+      expect(storageService.delete).toHaveBeenCalledWith(
+        'letter-pdfs/l-1.pdf',
+        'minio',
+      );
+      expect(letterModel.deleteMany).toHaveBeenCalledWith({ userId: 'user-1' });
     });
   });
 });
